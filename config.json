@@ -1,0 +1,85 @@
+{
+  "log": {
+    "loglevel": "debug",
+    "access": "/opt/var/log/xray/access.log",
+    "error": "/opt/var/log/xray/error.log"
+  },
+  "inbounds": [
+    {
+      "tag": "socks-in",
+      "port": 10808,
+      "listen": "0.0.0.0",
+      "protocol": "socks",
+      "settings": {
+        "udp": true
+      }
+    },
+    {
+      "tag": "http-in",
+      "port": 10809,
+      "listen": "0.0.0.0",
+      "protocol": "http"
+    },
+    {
+      "tag": "tproxy-in",
+      "protocol": "dokodemo-door",
+      "port": 12345,
+      "settings": {
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "vless-out",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "111.111.111.111",
+            "port": 443,
+            "users": [
+              {
+                "id": "ID-ID-ID-ID-ID",
+                "flow": "xtls-rprx-vision",
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "serverName": "server.name",
+          "fingerprint": "chrome",
+          "publicKey": "publickey",
+          "shortId": "shortid",
+          "spiderX": "/"
+        }
+      }
+    },
+    {
+      "tag": "direct",
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["tproxy-in"],
+        "outboundTag": "vless-out"
+      }
+    ]
+  }
+}
+

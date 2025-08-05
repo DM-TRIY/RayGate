@@ -1,0 +1,175 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          xray
+# Required-Start:    $network
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Xray service control
+### END INIT INFO
+
+XRAY_BIN="/opt/sbin/xray"
+XRAY_CONF="/opt/etc/xray/config.json"
+XRAY_LOG_DIR="/opt/var/log/xray"
+XRAY_LOG_FILE="$XRAY_LOG_DIR/xray_output.log"
+PID_FILE="/opt/var/run/xray.pid"
+IPSET_FILE="/opt/etc/vpn_domains.ipset"
+
+# веб морда
+WEBVPN_DIR="/opt/webvpn"
+WEBVPN_LOG="$WEBVPN_DIR/webvpn.log"
+WEBVPN_PID_FILE="/opt/var/run/webvpn.pid"
+
+get_uptime() {
+    pid="$1"
+    if [ -f "/proc/$pid/stat" ]; then
+        proc_start=$(awk '{print $22}' /proc/$pid/stat)
+        hz=100
+        sys_uptime=$(awk '{print int($1)}' /proc/uptime)
+        proc_uptime=$(( sys_uptime - (proc_start / hz) ))
+        printf "%dd %02dh %02dm %02ds" \
+            $((proc_uptime/86400)) \
+            $((proc_uptime%86400/3600)) \
+            $((proc_uptime%3600/60)) \
+            $((proc_uptime%60))
+    fi
+}
+
+check_running() {
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    if pgrep -f "$XRAY_BIN run" >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
+get_xray_pid() {
+    if [ -f "$PID_FILE" ]; then
+        pid=$(cat "$PID_FILE")
+        if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
+            echo "$pid"
+            return
+        fi
+    fi
+    pgrep -f "$XRAY_BIN run" | head -n 1
+}
+
+start_webvpn() {
+    if pgrep -f "python3 app.py" >/dev/null 2>&1; then
+        echo "[i] WebVPN already running"
+    else
+        echo "Starting WebVPN..."
+        cd "$WEBVPN_DIR" || exit
+        python3 app.py >> "$WEBVPN_LOG" 2>&1 &
+        echo $! > "$WEBVPN_PID_FILE"
+        echo "✅ WebVPN started with PID $(cat "$WEBVPN_PID_FILE")"
+    fi
+}
+
+case "$1" in
+start)
+    echo "Starting Xray..."
+
+    if [ -f "$PID_FILE" ] && ! ps -p "$(cat "$PID_FILE")" >/dev/null 2>&1; then
+      rm -f "$PID_FILE"
+    fi
+
+    if [ -f "$IPSET_FILE" ]; then
+      echo "Restoring ipset vpn_domains from $IPSET_FILE..."
+      ipset restore < "$IPSET_FILE"
+    fi
+
+    if ! iptables -t nat -C PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
+        -j REDIRECT --to-ports 12345 2>/dev/null; then
+        iptables -t nat -A PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
+        -j REDIRECT --to-ports 12345
+        echo "✅ iptables rule added"
+    else
+        echo "[i] iptables rule already exists"
+    fi
+
+    if [ ! -x "$XRAY_BIN" ]; then
+      echo "❌ Xray binary not found at $XRAY_BIN"
+      exit 1
+    fi
+
+    $XRAY_BIN run -test -c "$XRAY_CONF" >/tmp/xray_test.log 2>&1
+    if [ $? -ne 0 ]; then
+      echo "❌ Config check failed! See /tmp/xray_test.log:"
+      tail -n 20 /tmp/xray_test.log
+      exit 1
+    fi
+
+    mkdir -p "$XRAY_LOG_DIR"
+    rm -f "$XRAY_LOG_FILE"
+
+    "$XRAY_BIN" run -c "$XRAY_CONF" >>"$XRAY_LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+
+    sleep 2
+
+    if check_running; then
+      echo "✅ Xray started (PID: $(get_xray_pid))"
+      start_webvpn
+    else
+      echo "❌ Xray failed to start. Last log lines:"
+      tail -n 20 "$XRAY_LOG_FILE"
+      rm -f "$PID_FILE"
+      exit 1
+    fi
+    ;;
+
+  stop)
+    echo "Stopping Xray..."
+    if check_running; then
+      echo "Killing all XRAY processes..."
+      for pid in $(pgrep -f "$XRAY_BIN run"); do
+        kill "$pid" 2>/dev/null
+      done
+      sleep 1
+      if pgrep -f "$XRAY_BIN run" >/dev/null 2>&1; then
+        echo "⚠️ Some XRAY processes still alive, killing forcefully..."
+        pkill -9 -f "$XRAY_BIN run"
+      fi
+      rm -f "$PID_FILE"
+      rm -f "$XRAY_LOG_FILE"
+      echo "✅ Xray stopped"
+    else
+      echo "[i] Xray is not running"
+    fi
+    sleep 1
+    ;;
+
+  restart)
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
+
+  status)
+    if check_running; then
+      pid=$(get_xray_pid)
+      echo "✅ Xray is running (PID: $pid, Uptime: $(get_uptime "$pid"))"
+    else
+      echo "[i] Xray is not running"
+    fi
+
+    if pgrep -f "python3 app.py" >/dev/null 2>&1; then
+      wpid=$(pgrep -f "python3 app.py" | head -n1)
+      echo "✅ WebVPN is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
+    else
+      echo "[i] WebVPN is not running"
+    fi
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+
