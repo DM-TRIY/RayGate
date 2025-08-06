@@ -4,20 +4,27 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
+    container:
+      image: openwrt/sdk:x86_64
+      options: --user root
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install opkg-build
+      - name: Prepare package directory
         run: |
-          wget -O /usr/local/bin/opkg-build https://downloads.openwrt.org/releases/19.07.7/scripts/opkg-build
-          chmod +x /usr/local/bin/opkg-build
+          mkdir -p /builder/raygate
+          cp -r raygate/* /builder/raygate/
 
       - name: Build IPK
+        working-directory: /builder
         run: |
           opkg-build raygate
 
@@ -25,4 +32,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: raygate-ipk
-          path: raygate_*.ipk
+          path: /builder/raygate_*.ipk
