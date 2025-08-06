@@ -72,6 +72,17 @@ start_webvpn() {
 }
 
 case "$1" in
+
+enable)
+    echo "Enabling RayGate to autostart..."
+    ln -s "$0" /opt/etc/rc.d/S99raygate 
+    ;;
+
+disable)
+    echo "Disabling RayGate from autostart..."
+    rm -f /opt/etc/rc.d/S99raygate
+    ;;
+
 start)
     echo "Starting Xray..."
 
@@ -92,6 +103,20 @@ start)
     else
         echo "[i] iptables rule already exists"
     fi
+
+    (
+      while true; do
+        if ! iptables -t nat -C PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
+            -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null; then
+            echo "[raygate_watchdog] iptables rule missing — re-adding"
+            iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
+                -j REDIRECT --to-ports "$TUN_PORT"
+        else
+            echo "[raygate_watchdog] iptables rule check OK"
+        fi
+        sleep 60
+      done
+    ) &
 
     if [ ! -x "$XRAY_BIN" ]; then
       echo "❌ Xray binary not found at $XRAY_BIN"

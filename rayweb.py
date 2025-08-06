@@ -6,11 +6,11 @@ import socket
 import re
 
 # ==== Настройки ====
-USERNAME = "make_username"
-PASSWORD_HASH = "make_hash"
-SECRET_KEY = "make_secret"
+USERNAME = "__USERNAME__"
+PASSWORD_HASH = "__PASSHASH__"
+SECRET_KEY = "__SECRET__"
 XRAY_SERVICE = "/opt/etc/init.d/S99raygate"
-XRAY_ADD_SCRIPT = "/opt/bin/xray_add_domain.sh"
+XRAY_ADD_SCRIPT = "/opt/bin/raygate/raygate_add_domain.sh"
 DNSMASQ_CONF = "/opt/etc/dnsmasq.d/90-vpn-domains.conf"
 IPSET_LIST_CMD = ["ipset", "list", "vpn_domains"]
 IPSET_SAVE_CMD = ["ipset", "save", "vpn_domains"]

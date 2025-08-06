@@ -9,8 +9,8 @@ TMP="/tmp/${TAG}.lst"
 RAW_URL="https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/${TAG}"
 DNS_SERVER="127.0.0.1"
 DNS_PORT="5353"
-TUN_PORT=12345
-IFACE="br0"
+TUN_PORT=9999
+IFACE="__IFACE__"
 IPSET_FILE="/opt/etc/vpn_domains.ipset"
 
 # 1) Создаём ipset, если нет
