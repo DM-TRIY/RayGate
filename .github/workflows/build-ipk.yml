@@ -1,0 +1,28 @@
+name: Build RayGate IPK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install opkg-build
+        run: |
+          wget -O /usr/local/bin/opkg-build https://downloads.openwrt.org/releases/19.07.7/scripts/opkg-build
+          chmod +x /usr/local/bin/opkg-build
+
+      - name: Build IPK
+        run: |
+          opkg-build raygate
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raygate-ipk
+          path: raygate_*.ipk
