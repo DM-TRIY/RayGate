@@ -1,0 +1,6 @@
+Package: raygate
+Version: 1.0
+Architecture: all
+Maintainer: DM-TRIY
+Description: RayGate — лёгкий и гибкий TProxy-шлюз на базе Xray VPN для OpenWRT роутеров.
+Depends: xray-core, dnsmasq-full, ipset, iptables, curl, bind-dig, python3, python3-pip
