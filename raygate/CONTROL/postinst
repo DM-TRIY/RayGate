@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -e
 
 echo "=== RayGate Post-install script ==="
@@ -47,7 +48,6 @@ echo -n "[4/6] Please enter USERNAME for rayweb authorization: "
 read USERNAME
 echo -n "[4/6] Please enter PASSWORD for rayweb authorization: "
 read -s PASSWORD
-echo
 PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
 SECRET=$(head -c 16 /dev/urandom | xxd -p)
 sed -i "s#__USERNAME__#$USERNAME#g" "$RAYWEB_PATH"

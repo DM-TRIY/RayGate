@@ -1,5 +1,11 @@
-*.sh text eol=lf
-*/CONTROL/* text eol=lf
-*.py text eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
+*.sh           text eol=lf
+postinst       text eol=lf
+S99*           text eol=lf
+
+
+*.py           text eol=lf
+*.json         text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.md           text eol=lf
+*              text=auto eol=lf
