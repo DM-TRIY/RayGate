@@ -2,7 +2,8 @@ name: Build RayGate IPK
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -10,36 +11,31 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install minimal build deps
+      - name: Install opkg-utils
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git file tar xz-utils
+          sudo apt-get update && sudo apt-get install -y build-essential python3
+          git clone https://git.yoctoproject.org/opkg-utils
+          cd opkg-utils
+          make
+          sudo make install
+          opkg-build --version
 
-      - name: Install opkg-build (from opkg-utils)
+      - name: Prepare dist directory
         run: |
-          git clone https://git.openwrt.org/project/opkg-utils.git /tmp/opkg-utils
-          sudo install -m 0755 /tmp/opkg-utils/opkg-build /usr/local/bin/opkg-build
-          opkg-build --help | head -n 3
+          mkdir -p dist
+          cp -r raygate/* dist/ || true
 
-      - name: Normalize line endings (CRLF -> LF)
+      - name: Build IPK package
         run: |
-          sed -i 's/\r$//' raygate/CONTROL/* || true
-          find raygate -type f -name "*.sh" -exec sed -i 's/\r$//' {} \; || true
-          chmod +x raygate/CONTROL/postinst || true
-          chmod +x raygate/opt/etc/init.d/S99raygate || true
-          chmod +x raygate/opt/bin/raygate/raygate_add.sh || true
-          chmod +x raygate/opt/bin/raygate/rayweb/rayweb.py || true
+          cd dist
+          mkdir -p ../output
+          opkg-build -o root -g root . ../output
 
-      - name: Build IPK
-        run: |
-          opkg-build -o root -g root raygate
-          ls -l *.ipk
-
-      - name: Upload artifact
+      - name: Upload IPK artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate-ipk
-          path: ./*.ipk
+          path: output/*.ipk

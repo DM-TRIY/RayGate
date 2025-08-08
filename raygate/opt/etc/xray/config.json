@@ -23,7 +23,7 @@
     {
       "tag": "tproxy-in",
       "protocol": "dokodemo-door",
-      "port": 99999,
+      "port": 9999,
       "settings": {
         "network": "tcp,udp",
         "followRedirect": true

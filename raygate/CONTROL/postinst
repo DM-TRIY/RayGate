@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "=== RayGate Post-install ==="
+echo "=== RayGate Post-install script ==="
 
 # === Python-зависимости ===
 echo -n "[1/6] Installing Python packages... "
@@ -30,9 +30,9 @@ read -r VLESS
 ADDRESS=$(echo "$VLESS" | sed -n 's#.*@\([^:]*\):.*#\1#p')
 PORT=$(echo "$VLESS" | sed -n 's#.*:\([0-9]*\)?.*#\1#p')
 UUID=$(echo "$VLESS" | sed -n 's#vless://\([^@]*\)@.*#\1#p')
-SNI=$(echo "$VLESS" | grep -oP '(?<=sni=)[^&]*')
-PUBKEY=$(echo "$VLESS" | grep -oP '(?<=pbk=)[^&]*')
-SHORTID=$(echo "$VLESS" | grep -oP '(?<=sid=)[^&]*')
+SNI=$(echo "$VLESS" | sed -n '(?<=sni=)[^&]*')
+PUBKEY=$(echo "$VLESS" | sed -n '(?<=pbk=)[^&]*')
+SHORTID=$(echo "$VLESS" | sed -n '(?<=sid=)[^&]*')
 
 sed -i "s#__ADDRESS__#${ADDRESS//\//\\/}#g" "$CONFIG_PATH"
 sed -i "s#__PORT__#$PORT#g" "$CONFIG_PATH"
@@ -70,3 +70,4 @@ echo "[6/6] RayGate started!"
 BR_IP=$(ip -o -4 addr show dev "$IFACE" | awk '{print $4}' | cut -d/ -f1)
 echo "=== Installation complete! ==="
 echo "Web UI available at: http://$BR_IP:9090"
+echo "=== Enjoy! ==="
