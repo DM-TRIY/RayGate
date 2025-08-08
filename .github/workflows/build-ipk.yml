@@ -2,34 +2,36 @@ name: Build RayGate IPK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-
-    container:
-      image: openwrt/sdk:x86_64
-      options: --user root
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare package directory
+      - name: Install opkg-utils (contains opkg-build)
         run: |
-          mkdir -p /builder/raygate
-          cp -r raygate/* /builder/raygate/
+          sudo apt-get update
+          sudo apt-get install -y opkg-utils
+
+      - name: Ensure executable bits
+        run: |
+          chmod +x raygate/CONTROL/postinst || true
+          chmod +x raygate/opt/etc/init.d/S99raygate || true
+          chmod +x raygate/opt/bin/raygate/raygate_add.sh || true
+          chmod +x raygate/opt/bin/raygate/rayweb/rayweb.py || true
 
       - name: Build IPK
-        working-directory: /builder
         run: |
           opkg-build raygate
+          ls -l *.ipk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate-ipk
-          path: /builder/raygate_*.ipk
+          path: ./*.ipk
