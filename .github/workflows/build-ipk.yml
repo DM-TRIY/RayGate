@@ -21,8 +21,8 @@ jobs:
           cd opkg-utils
           make
           sudo make install
-          # opkg-build не умеет '--version' -> будет "illegal option -- -", это норм
-          opkg-build -h >/dev/null || true
+
+          opkg-build 2>/dev/null || true
 
       - name: Prepare dist directory
         shell: bash
@@ -36,7 +36,6 @@ jobs:
         shell: bash
         run: |
           set -eux
-
           # CRLF -> LF (на всякий случай)
           sed -i 's/\r$//' dist/CONTROL/control               || true
           sed -i 's/\r$//' dist/CONTROL/postinst              || true
@@ -49,12 +48,19 @@ jobs:
           chmod 0755 dist/opt/etc/init.d/S99raygate
           chmod 0755 dist/opt/bin/raygate/raygate_add.sh
 
+          test -f dist/CONTROL/control
+          test -f dist/CONTROL/postinst
+          test -f dist/opt/etc/init.d/S99raygate
+
       - name: Build IPK package
+        shell: bash
         run: |
-          # Собираем из dist/ (внутри лежат CONTROL/ и opt/)
-          opkg-build -o root -g root dist output
+          set -eux
+          PKGDIR="$(pwd)/dist"
+          DEST="$(pwd)/output"
+          opkg-build -o root -g root "$PKGDIR" "$DEST"
           echo "Built packages:"
-          ls -l output
+          ls -l "$DEST"
 
       - name: Upload IPK artifact
         uses: actions/upload-artifact@v4
