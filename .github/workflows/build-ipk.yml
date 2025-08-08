@@ -21,25 +21,29 @@ jobs:
           cd opkg-utils
           make
           sudo make install
-          opkg-build --version
+          # opkg-build не умеет '--version' -> будет "illegal option -- -", это норм
+          opkg-build -h >/dev/null || true
 
       - name: Prepare dist directory
+        shell: bash
         run: |
+          set -eux
           rm -rf dist output
-          mkdir -p dist
-          cp -r raygate/* dist/ || true
+          mkdir -p dist output
+          cp -a raygate/. dist/
 
       - name: Fix line endings & permissions inside dist
         shell: bash
         run: |
           set -eux
+
           # CRLF -> LF (на всякий случай)
-          sed -i 's/\r$//' dist/CONTROL/control        || true
-          sed -i 's/\r$//' dist/CONTROL/postinst       || true
-          sed -i 's/\r$//' dist/opt/etc/init.d/S99raygate || true
+          sed -i 's/\r$//' dist/CONTROL/control               || true
+          sed -i 's/\r$//' dist/CONTROL/postinst              || true
+          sed -i 's/\r$//' dist/opt/etc/init.d/S99raygate     || true
           sed -i 's/\r$//' dist/opt/bin/raygate/raygate_add.sh || true
           sed -i 's/\r$//' dist/opt/bin/raygate/rayweb/rayweb.py || true
-          sed -i 's/\r$//' dist/opt/etc/xray/config.json || true
+          sed -i 's/\r$//' dist/opt/etc/xray/config.json      || true
 
           chmod 0755 dist/CONTROL/postinst
           chmod 0755 dist/opt/etc/init.d/S99raygate
@@ -47,11 +51,10 @@ jobs:
 
       - name: Build IPK package
         run: |
-          mkdir -p output
-          cd dist
-          opkg-build -o root -g root . ../output
+          # Собираем из dist/ (внутри лежат CONTROL/ и opt/)
+          opkg-build -o root -g root dist output
           echo "Built packages:"
-          ls -l ../output
+          ls -l output
 
       - name: Upload IPK artifact
         uses: actions/upload-artifact@v4
