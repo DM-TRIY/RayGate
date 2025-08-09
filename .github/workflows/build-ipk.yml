@@ -29,7 +29,22 @@ jobs:
           set -eux
           rm -rf dist output
           mkdir -p dist output
-          cp -a raygate/. dist/
+          cp -a raygate/* dist/
+
+      - name: Check dist structure
+        shell: bash
+        run: |
+          echo "==== DIST STRUCTURE ===="
+          find dist -maxdepth 3 -type f
+          echo "==== CHECKING CONTROL FILES ===="
+          if [ ! -f dist/CONTROL/control ]; then
+            echo "ERROR: control file not found in dist/CONTROL/"
+            exit 1
+          fi
+          if [ ! -f dist/CONTROL/postinst ]; then
+            echo "ERROR: postinst file not found in dist/CONTROL/"
+            exit 1
+          fi
 
       - name: Fix line endings & permissions inside dist
         shell: bash
@@ -59,6 +74,9 @@ jobs:
           opkg-build -o root -g root "$PKGDIR" "$DEST"
           echo "Built packages:"
           ls -l "$DEST"
+          echo "==== CHECKING PACKAGE CONTENTS ===="
+          ar x "$DEST"/*.ipk
+          tar -tf control.tar.gz
 
       - name: Upload IPK artifact
         uses: actions/upload-artifact@v4

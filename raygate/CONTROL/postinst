@@ -3,6 +3,8 @@
 set -x
 set -e
 
+echo "postinst starting" >> /opt/var/log/raygate-postinst.log
+
 echo "=== RayGate Post-install script ==="
 
 # === Python-зависимости ===
