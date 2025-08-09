@@ -21,7 +21,6 @@ jobs:
           cd opkg-utils
           make
           sudo make install
-
           opkg-build 2>/dev/null || true
 
       - name: Prepare dist directory
@@ -36,7 +35,6 @@ jobs:
         shell: bash
         run: |
           set -eux
-          # CRLF -> LF (на всякий случай)
           sed -i 's/\r$//' dist/CONTROL/control               || true
           sed -i 's/\r$//' dist/CONTROL/postinst              || true
           sed -i 's/\r$//' dist/opt/etc/init.d/S99raygate     || true
@@ -67,3 +65,29 @@ jobs:
         with:
           name: raygate-ipk
           path: output/*.ipk
+
+      - name: Prepare opkg feed (copy + index)
+        shell: bash
+        run: |
+          set -eux
+          mkdir -p opkg/all
+          cp -f output/*.ipk opkg/all/
+          opkg-make-index opkg/all > opkg/all/Packages
+          gzip -f opkg/all/Packages
+          ls -l opkg/all
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: opkg
+
+  deploy: 
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
