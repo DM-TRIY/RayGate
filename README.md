@@ -22,12 +22,19 @@ RayGate — это оснастка VPN для маршрутизаторов с
 
 1. Добавьте репозиторий RayGate в opkg:
 
-``` src/gz raygate https://dm-triy.github.io/RayGate/all ```
+```
+mkdir -p /opt/etc/opkg
+echo "src/gz raygate https://dm-triy.github.io/RayGate/all" > /opt/etc/opkg/raygate.conf
+```
 
 2. Обновите списки пакетов:
 
-``` opkg update ```
+``` 
+opkg update 
+```
 
 3. Установите RayGate:
 
-``` opkg install raygate ```
+``` 
+opkg install raygate 
+```
