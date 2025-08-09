@@ -105,7 +105,8 @@ HTML_TEMPLATE = """
 # ==== Ограничение доступа по IP ====
 @app.before_request
 def limit_remote_addr():
-    if request.remote_addr not in ("127.0.0.1", "::1") and not str(ipaddress.ip_address(request.remote_addr)).startswith("192.168."):
+    ip = ipaddress.ip_address(request.remote_addr)
+    if not (ip.is_loopback or ip.is_private):
         abort(403)
 
 # ==== Получить список доменов из dnsmasq ====
@@ -139,7 +140,7 @@ def remove_domain_from_ipset(domain, mode="full"):
             for line in lines:
                 if not line.startswith(f"ipset=/{domain}/") and not line.startswith(f"ipset=/{clean}/"):
                     f.write(line)
-        subprocess.run(["kill", "-HUP", "$(pidof dnsmasq)"], shell=True)
+        subprocess.run("kill -HUP $(pidof dnsmasq)", shell=True, check=False)
 
         if mode == "full" and clean:
             try:
