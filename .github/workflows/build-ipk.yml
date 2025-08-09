@@ -81,12 +81,15 @@ jobs:
         with:
           path: opkg
 
-  deploy: 
+  deploy:
     needs: build
     permissions:
       pages: write
       id-token: write
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
