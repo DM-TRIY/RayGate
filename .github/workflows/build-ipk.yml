@@ -33,7 +33,7 @@ jobs:
           cp raygate/CONTROL/control build/raygate/CONTROL/
           cp raygate/CONTROL/postinst build/raygate/CONTROL/
           chmod 755 build/raygate/CONTROL/postinst
-          cp -r opt/* build/raygate/opt/
+          cp -r raygate/opt/* build/raygate/opt/
 
       - name: Create control.tar.gz
         run: |
