@@ -5,4 +5,4 @@ Maintainer: DT
 Section: net
 Priority: optional
 Depends: xray-core, dnsmasq-full, ipset, iptables, curl, bind-dig, python3, python3-pip
-Description: RayGate – TProxy‑шлюз на базе Xray для Entware.
+Description: RayGate is TProxy gateway for Entware.

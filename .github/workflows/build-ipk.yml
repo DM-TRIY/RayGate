@@ -21,6 +21,7 @@ jobs:
           # Убираем ведущие пробелы перед ключами
           sed -i 's/^[[:space:]]*\(Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
           # Убираем CRLF в postinst
+          sed -i 's/\r//g' raygate/CONTROL/control
           sed -i 's/\r$//' raygate/CONTROL/postinst
 
       - name: Extract version from control
@@ -32,13 +33,13 @@ jobs:
       - name: Prepare build directories
         run: |
           rm -rf build
-          mkdir -p build/control build/data
+          mkdir -p build/CONTROL build/data
 
       - name: Copy files into control and data
         run: |
-          cp raygate/CONTROL/control build/control/
-          cp raygate/CONTROL/postinst build/control/
-          chmod 755 build/control/postinst
+          cp raygate/CONTROL/control build/CONTROL/
+          cp raygate/CONTROL/postinst build/CONTROL/
+          chmod 755 build/CONTROL/postinst
           cp -r raygate/opt/* build/data/
 
       - name: Build control.tar.gz and data.tar.gz
