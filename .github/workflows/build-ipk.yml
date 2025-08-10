@@ -3,7 +3,7 @@ name: Build RayGate IPK
 on:
   push:
     branches:
-      - '**'
+      - main
     tags:
       - 'v*'
 
@@ -15,55 +15,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version
+      - name: Get version from control
         id: get_version
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF/refs\/tags\/v/}"
-          else
-            VERSION="dev"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Building version: $VERSION"
+        run: echo "VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
 
-      - name: Prepare build environment
+      - name: Prepare build directories
         run: |
-          mkdir -p build/raygate/CONTROL
-          mkdir -p build/raygate/opt
-          cp raygate/CONTROL/control build/raygate/CONTROL/
-          cp raygate/CONTROL/postinst build/raygate/CONTROL/
-          chmod 755 build/raygate/CONTROL/postinst
-          cp -r raygate/opt/* build/raygate/opt/
+          mkdir -p build/pkg
+          mkdir -p build/control
+          mkdir -p build/data
+
+      - name: Copy CONTROL files
+        run: |
+          cp raygate/CONTROL/control build/control/
+          cp raygate/CONTROL/postinst build/control/
+          chmod 755 build/control/postinst
+
+      - name: Copy data files
+        run: |
+          cp -r raygate/opt build/data/
+
+      - name: Create debian-binary
+        run: echo "2.0" > build/pkg/debian-binary
 
       - name: Create control.tar.gz
         run: |
-          cd build/raygate
-          tar --format=ustar --owner=0 --group=0 -czf ../control.tar.gz CONTROL
+          cd build/control
+          tar --format=gnu -czf ../pkg/control.tar.gz *
 
       - name: Create data.tar.gz
         run: |
-          cd build/raygate
-          tar --format=ustar --owner=0 --group=0 -czf ../data.tar.gz opt
+          cd build/data
+          tar --format=gnu -czf ../pkg/data.tar.gz *
 
-      - name: Create debian-binary
-        run: echo "2.0" > build/debian-binary
-
-      - name: Build IPK (ar archive)
+      - name: Build final IPK
         run: |
-          cd build
-          ar r raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
-          ls -l raygate_${VERSION}_all.ipk
+          cd build/pkg
+          ar r "../../raygate_${VERSION}_all.ipk" debian-binary control.tar.gz data.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate_${{ env.VERSION }}_all.ipk
-          path: build/raygate_${{ env.VERSION }}_all.ipk
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/raygate_${{ env.VERSION }}_all.ipk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: raygate_${{ env.VERSION }}_all.ipk
