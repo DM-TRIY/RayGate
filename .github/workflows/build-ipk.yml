@@ -15,7 +15,7 @@ jobs:
 
       - name: Get version from control
         id: get_version
-        run: echo "VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
+        run: echo "VERSION=$(grep -m1 '^Version:' raygate/CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
 
       - name: Prepare build environment
         run: |
@@ -25,8 +25,8 @@ jobs:
       - name: Copy files
         run: |
           # CONTROL
-          cp CONTROL/control build/raygate/CONTROL/
-          cp CONTROL/postinst build/raygate/CONTROL/
+          cp raygate/CONTROL/control build/raygate/CONTROL/
+          cp raygate/CONTROL/postinst build/raygate/CONTROL/
           chmod 755 build/raygate/CONTROL/postinst
 
           # OPT
