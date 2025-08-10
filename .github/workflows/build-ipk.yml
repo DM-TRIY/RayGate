@@ -28,10 +28,10 @@ jobs:
 
       - name: Copy files into build
         run: |
-          cp CONTROL/control build/CONTROL/
-          cp CONTROL/postinst build/CONTROL/
+          cp raygate/CONTROL/control build/CONTROL/
+          cp raygate/CONTROL/postinst build/CONTROL/
           chmod 755 build/CONTROL/postinst
-          cp -r opt/* build/opt/
+          cp -r raygate/opt/* build/opt/
 
       - name: Create nfqws-style .ipk (tar.gz)
         run: |
