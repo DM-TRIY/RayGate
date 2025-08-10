@@ -32,7 +32,7 @@ jobs:
           chmod 755 build/raygate/CONTROL/postinst
 
           # OPT
-          cp -r opt/* build/raygate/opt/
+          cp -r raygate/opt/* build/raygate/opt/
 
       - name: Make gzip IPK (nfqws-style)
         run: |
