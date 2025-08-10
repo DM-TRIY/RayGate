@@ -13,13 +13,11 @@ TUN_PORT=9999
 IFACE="__IFACE__"
 IPSET_FILE="/opt/etc/vpn_domains.ipset"
 
-# 1) Создаём ipset, если нет
 if ! ipset list "$SET4" >/dev/null 2>&1; then
   ipset create "$SET4" hash:ip
   echo "✔ Создан ipset $SET4"
 fi
 
-# 2) Отключаем AAAA-записи, если ещё не создано
 mkdir -p "$CONF_DIR"
 if [ ! -f "$NOAAAA_CONF" ]; then
   cat > "$NOAAAA_CONF" << 'EOF'
@@ -28,7 +26,6 @@ EOF
   echo "✔ Создан $NOAAAA_CONF (filter-aaaa)"
 fi
 
-# 3) Проверяем аргумент
 [ -z "$TAG" ] && { echo "Usage: $0 <geosite-tag|domain>"; exit 1; }
 
 echo "⏬ Загружаем список доменов для '$TAG'..."
@@ -39,7 +36,6 @@ else
   echo "$TAG" > "$TMP"
 fi
 
-# 4) Добавляем ipset-записи
 ADDED=0
 touch "$CONF"
 while IFS= read -r line; do
@@ -53,10 +49,8 @@ while IFS= read -r line; do
 done < "$TMP"
 [ "$ADDED" -gt 0 ] && echo "✅ Добавлено $ADDED ipset-записей"
 
-# 5) Перечитываем dnsmasq
 pidof dnsmasq >/dev/null && { kill -HUP "$(pidof dnsmasq)"; echo "dnsmasq перечитан"; }
 
-# 6) Прогреваем DNS и сразу добавляем IP
 while IFS= read -r line; do
   dom="${line%%#*}"
   dom="${dom#.}"
@@ -68,7 +62,6 @@ done < "$TMP"
 
 rm -f "$TMP"
 
-# 7) Авто-добавление популярных поддоменов для twimg.com
 if [ "$TAG" = "twimg.com" ]; then
   for sub in abs pbs video ton; do
     echo "🔄 Добавляем $sub.$TAG"
@@ -76,14 +69,11 @@ if [ "$TAG" = "twimg.com" ]; then
   done
 fi
 
-# 8) Обновляем NAT
 iptables -t nat -D PREROUTING -i "$IFACE" -p tcp -m set --match-set "$SET4" dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null
 iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set "$SET4" dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT"
 
-# 9) Сохраняем ipset в дамп
 ipset save "$SET4" > "$IPSET_FILE"
 echo "💾 IpSet сохранён в $IPSET_FILE"
 
-# 10) Итог
 ipset list "$SET4" | head -n 20
 
