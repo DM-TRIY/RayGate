@@ -17,44 +17,39 @@ jobs:
 
       - name: Get version from control
         id: get_version
-        run: echo "VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
-
-      - name: Prepare build directories
         run: |
-          mkdir -p build/pkg
-          mkdir -p build/control
-          mkdir -p build/data
+          VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Copy CONTROL files
+      - name: Prepare build directory
         run: |
-          cp raygate/CONTROL/control build/control/
-          cp raygate/CONTROL/postinst build/control/
-          chmod 755 build/control/postinst
+          mkdir -p build/CONTROL
+          mkdir -p build/opt
 
-      - name: Copy data files
+      - name: Copy files into build
         run: |
-          cp -r raygate/opt build/data/
+          cp CONTROL/control build/CONTROL/
+          cp CONTROL/postinst build/CONTROL/
+          chmod 755 build/CONTROL/postinst
+          cp -r opt/* build/opt/
 
-      - name: Create debian-binary
-        run: echo "2.0" > build/pkg/debian-binary
-
-      - name: Create control.tar.gz
+      - name: Create nfqws-style .ipk (tar.gz)
         run: |
-          cd build/control
-          tar --format=gnu -czf ../pkg/control.tar.gz *
-
-      - name: Create data.tar.gz
-        run: |
-          cd build/data
-          tar --format=gnu -czf ../pkg/data.tar.gz *
-
-      - name: Build final IPK
-        run: |
-          cd build/pkg
-          ar r "../../raygate_${VERSION}_all.ipk" debian-binary control.tar.gz data.tar.gz
+          cd build
+          tar -czf ../raygate_${VERSION}_all.ipk CONTROL opt
+          cd ..
+          file raygate_${VERSION}_all.ipk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate_${{ env.VERSION }}_all.ipk
           path: raygate_${{ env.VERSION }}_all.ipk
+
+      - name: Create Release (only on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: raygate_${{ env.VERSION }}_all.ipk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
