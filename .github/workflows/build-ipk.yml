@@ -2,6 +2,8 @@ name: Build RayGate IPK
 
 on:
   push:
+    branches:
+      - '**'
     tags:
       - 'v*'
 
