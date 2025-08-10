@@ -15,9 +15,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from control
-        id: get_version
-        run: echo "VERSION=$(grep -m1 '^Version:' raygate/CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
+      - name: Determine version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="dev"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Building RayGate version: $VERSION"
 
       - name: Prepare build environment
         run: |
@@ -32,7 +38,7 @@ jobs:
           chmod 755 build/raygate/CONTROL/postinst
 
           # OPT
-          cp -r raygate/opt/* build/raygate/opt/
+          cp -r opt/* build/raygate/opt/ || echo "No opt files found"
 
       - name: Make gzip IPK (nfqws-style)
         run: |
@@ -46,22 +52,9 @@ jobs:
           path: raygate_${{ env.VERSION }}_all.ipk
 
       - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: raygate_${{ env.VERSION }}_all.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  deploy:
-    needs: build
-    permissions:
-      pages: write
-      id-token: write
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
