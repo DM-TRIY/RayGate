@@ -2,7 +2,7 @@
 postinst       text eol=lf
 S99*           text eol=lf
 
-
+raygate/CONTROL/control text eol=lf
 *.py           text eol=lf
 *.json         text eol=lf
 *.yml          text eol=lf

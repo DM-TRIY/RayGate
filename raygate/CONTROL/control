@@ -1,8 +1,8 @@
-Package: raygate
+﻿Package: raygate
 Version: 0.9.0
 Architecture: all
-Maintainer: DM-TRIY
+Maintainer: DM‑TRIY
 Section: net
 Priority: optional
 Depends: xray-core, dnsmasq-full, ipset, iptables, curl, bind-dig, python3, python3-pip
-Description: RayGate – TProxy-шлюз на базе Xray для Entware.
+Description: RayGate – TProxy‑шлюз на базе Xray для Entware.
