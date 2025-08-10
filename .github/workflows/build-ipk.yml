@@ -15,46 +15,55 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Determine version
+      - name: Get version
+        id: get_version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
+            VERSION="${GITHUB_REF/refs\/tags\/v/}"
           else
             VERSION="dev"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Building RayGate version: $VERSION"
+          echo "Building version: $VERSION"
 
       - name: Prepare build environment
         run: |
           mkdir -p build/raygate/CONTROL
           mkdir -p build/raygate/opt
-
-      - name: Copy files
-        run: |
-          # CONTROL
           cp raygate/CONTROL/control build/raygate/CONTROL/
           cp raygate/CONTROL/postinst build/raygate/CONTROL/
           chmod 755 build/raygate/CONTROL/postinst
+          cp -r opt/* build/raygate/opt/
 
-          # OPT
-          cp -r opt/* build/raygate/opt/ || echo "No opt files found"
-
-      - name: Make gzip IPK (nfqws-style)
+      - name: Create control.tar.gz
         run: |
           cd build/raygate
-          tar -czf ../../raygate_${VERSION}_all.ipk CONTROL opt
-  
+          tar --format=ustar --owner=0 --group=0 -czf ../control.tar.gz CONTROL
+
+      - name: Create data.tar.gz
+        run: |
+          cd build/raygate
+          tar --format=ustar --owner=0 --group=0 -czf ../data.tar.gz opt
+
+      - name: Create debian-binary
+        run: echo "2.0" > build/debian-binary
+
+      - name: Build IPK (ar archive)
+        run: |
+          cd build
+          ar r raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
+          ls -l raygate_${VERSION}_all.ipk
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate_${{ env.VERSION }}_all.ipk
-          path: raygate_${{ env.VERSION }}_all.ipk
+          path: build/raygate_${{ env.VERSION }}_all.ipk
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: raygate_${{ env.VERSION }}_all.ipk
+          files: build/raygate_${{ env.VERSION }}_all.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
