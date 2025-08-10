@@ -16,7 +16,7 @@ jobs:
 
       - name: Normalize control and postinst
         run: |
-          sed -i 's/\r$//' raygate/CONTROL/control
+          sed -i 's/^\\s\\+\\(Version\\|Architecture\\|Maintainer\\|Section\\|Priority\\|Depends\\|Description\\)/\\1/' raygate/CONTROL/control
           sed -i 's/\r$//' raygate/CONTROL/postinst
 
       - name: Extract version from control
