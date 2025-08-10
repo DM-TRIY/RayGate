@@ -10,42 +10,65 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
+      # Получаем исходники
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get version from control
+      # Выдёргиваем версию из control‑файла. В control могут быть пробелы в начале строки,
+      # поэтому ищем регуляркой, допускающей начальные пробелы
+      - name: Extract version from control
         id: get_version
+        shell: bash
         run: |
-          VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')
+          VERSION=$(grep -m1 -E '^[[:space:]]*Version:' raygate/CONTROL/control | awk '{print $2}')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Prepare build directory
+      # Готовим директории для сборки: папку control для метаданных и data для файлов
+      - name: Prepare build directories
         run: |
-          mkdir -p build/CONTROL
-          mkdir -p build/opt
+          mkdir -p build/control
+          mkdir -p build/data
 
-      - name: Copy files into build
+      # Копируем control‑файл и postinst‑скрипт в секцию control, а содержимое opt в data
+      - name: Copy files into control and data
         run: |
-          cp raygate/CONTROL/control build/CONTROL/
-          cp raygate/CONTROL/postinst build/CONTROL/
-          chmod 755 build/CONTROL/postinst
-          cp -r raygate/opt/* build/opt/
+          cp raygate/CONTROL/control build/control/
+          cp raygate/CONTROL/postinst build/control/
+          chmod 755 build/control/postinst
+          # копируем всё из opt в data, сохраняя структуру
+          cp -r raygate/opt/* build/data/
 
-      - name: Create nfqws-style .ipk (tar.gz)
+      # Создаём control.tar.gz и data.tar.gz, как требует формат ipk
+      - name: Build control.tar.gz and data.tar.gz
         run: |
-          cd build
-          tar -czf ../raygate_${VERSION}_all.ipk CONTROL opt
-          cd ..
-          file raygate_${VERSION}_all.ipk
+          pushd build/control
+          tar --numeric-owner --group=0 --owner=0 -czf ../control.tar.gz ./*
+          popd
+          pushd build/data
+          tar --numeric-owner --group=0 --owner=0 -czf ../data.tar.gz ./*
+          popd
 
+      # Файл debian‑binary нужен для ipk: содержит строку 2.0
+      - name: Create debian-binary
+        run: echo '2.0' > build/debian-binary
+
+      # Собираем итоговый ipk из debian-binary, control.tar.gz и data.tar.gz.
+      # Используем ar (часть binutils), чтобы пакет соответствовал MIME‑типу debian binary package.
+      - name: Assemble .ipk
+        run: |
+          pushd build
+          ar rcs ../raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
+          popd
+
+      # Загружаем собранный артефакт в раздел artifacts
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: raygate_${{ env.VERSION }}_all.ipk
           path: raygate_${{ env.VERSION }}_all.ipk
 
+      # Если пушим тэг, публикуем релиз с ipk
       - name: Create Release (only on tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
