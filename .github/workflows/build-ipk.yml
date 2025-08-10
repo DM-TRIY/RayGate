@@ -44,7 +44,7 @@ jobs:
 
       - name: Build control.tar.gz and data.tar.gz
         run: |
-          pushd build/control
+          pushd build/CONTROL
           tar --numeric-owner --group=0 --owner=0 -czf ../control.tar.gz .
           popd
           pushd build/data
