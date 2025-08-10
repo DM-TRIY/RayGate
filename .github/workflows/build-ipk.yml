@@ -2,102 +2,53 @@ name: Build RayGate IPK
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - 'v*'
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install opkg-utils
+      - name: Get version from control
+        id: get_version
+        run: echo "VERSION=$(grep -m1 '^Version:' CONTROL/control | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Prepare build environment
         run: |
-          sudo apt-get update && sudo apt-get install -y build-essential python3
-          git clone https://git.yoctoproject.org/opkg-utils
-          cd opkg-utils
-          make
-          sudo make install
-          opkg-build 2>/dev/null || true
+          mkdir -p build/raygate/CONTROL
+          mkdir -p build/raygate/opt
 
-      - name: Prepare dist directory
-        shell: bash
+      - name: Copy files
         run: |
-          set -eux
-          rm -rf dist output
-          mkdir -p dist output
-          cp -a raygate/* dist/
+          # CONTROL
+          cp CONTROL/control build/raygate/CONTROL/
+          cp CONTROL/postinst build/raygate/CONTROL/
+          chmod 755 build/raygate/CONTROL/postinst
 
-      - name: Check dist structure
-        shell: bash
+          # OPT
+          cp -r opt/* build/raygate/opt/
+
+      - name: Make gzip IPK (nfqws-style)
         run: |
-          echo "==== DIST STRUCTURE ===="
-          find dist -maxdepth 3 -type f
-          echo "==== CHECKING CONTROL FILES ===="
-          if [ ! -f dist/CONTROL/control ]; then
-            echo "ERROR: control file not found in dist/CONTROL/"
-            exit 1
-          fi
-          if [ ! -f dist/CONTROL/postinst ]; then
-            echo "ERROR: postinst file not found in dist/CONTROL/"
-            exit 1
-          fi
-
-      - name: Fix line endings & permissions inside dist
-        shell: bash
-        run: |
-          set -eux
-          sed -i 's/\r$//' dist/CONTROL/control               || true
-          sed -i 's/\r$//' dist/CONTROL/postinst              || true
-          sed -i 's/\r$//' dist/opt/etc/init.d/S99raygate     || true
-          sed -i 's/\r$//' dist/opt/bin/raygate/raygate_add.sh || true
-          sed -i 's/\r$//' dist/opt/bin/raygate/rayweb/rayweb.py || true
-          sed -i 's/\r$//' dist/opt/etc/xray/config.json      || true
-
-          chmod 0755 dist/CONTROL/postinst
-          chmod 0755 dist/opt/etc/init.d/S99raygate
-          chmod 0755 dist/opt/bin/raygate/raygate_add.sh
-
-          test -f dist/CONTROL/control
-          test -f dist/CONTROL/postinst
-          test -f dist/opt/etc/init.d/S99raygate
-
-      - name: Build IPK package
-        shell: bash
-        run: |
-          set -eux
-          PKGDIR="$(pwd)/dist"
-          DEST="$(pwd)/output"
-          opkg-build -o root -g root "$PKGDIR" "$DEST"
-          echo "Built packages:"
-          ls -l "$DEST"
-          echo "==== CHECKING PACKAGE CONTENTS ===="
-          ar x "$DEST"/*.ipk
-          tar -tf control.tar.gz
-
-      - name: Upload IPK artifact
+          cd build/raygate
+          tar -czf ../../raygate_${VERSION}_all.ipk CONTROL opt
+  
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: raygate-ipk
-          path: output/*.ipk
+          name: raygate_${{ env.VERSION }}_all.ipk
+          path: raygate_${{ env.VERSION }}_all.ipk
 
-      - name: Prepare opkg feed (copy + index)
-        shell: bash
-        run: |
-          set -eux
-          mkdir -p opkg/all
-          cp -f output/*.ipk opkg/all/
-          opkg-make-index opkg/all > opkg/all/Packages
-          gzip -f opkg/all/Packages
-          ls -l opkg/all
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          path: opkg
+          files: raygate_${{ env.VERSION }}_all.ipk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     needs: build
