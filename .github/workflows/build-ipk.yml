@@ -16,12 +16,15 @@ jobs:
 
       - name: Normalize control and postinst
         run: |
-          sed -i 's/^\\s\\+\\(Version\\|Architecture\\|Maintainer\\|Section\\|Priority\\|Depends\\|Description\\)/\\1/' raygate/CONTROL/control
+          # Убираем BOM из control
+          sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/control
+          # Убираем ведущие пробелы перед ключами
+          sed -i 's/^[[:space:]]*\(Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
+          # Убираем CRLF в postinst
           sed -i 's/\r$//' raygate/CONTROL/postinst
 
       - name: Extract version from control
         id: get_version
-        shell: bash
         run: |
           VERSION=$(grep -m1 -E '^[[:space:]]*Version:' raygate/CONTROL/control | awk '{print $2}')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
@@ -50,10 +53,10 @@ jobs:
       - name: Create debian-binary
         run: echo '2.0' > build/debian-binary
 
-      - name: Assemble .ipk
+      - name: Assemble .ipk with ar
         run: |
           pushd build
-          tar -cf ../raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
+          ar rcs ../raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
           popd
 
       - name: Upload artifact
