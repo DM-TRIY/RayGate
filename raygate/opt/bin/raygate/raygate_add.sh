@@ -1,7 +1,9 @@
 #!/bin/sh
 
 DOMAIN="$1"
-TAG="${DOMAIN%%.*}"
+# Используем домен второго уровня в качестве тега
+TAG="${DOMAIN%.*}"
+TAG="${TAG##*.}"
 CONF_DIR="/opt/etc/dnsmasq.d"
 CONF="$CONF_DIR/90-vpn-domains.conf"
 SET4="vpn_domains"
