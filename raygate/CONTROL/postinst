@@ -54,11 +54,9 @@ else
   echo "FAILED!"
 fi
 
-# === Настройка raygate_add.sh и S99raygate ===
-echo -n "[6/10] Configuring raygate_add and S99raygate... "
+# === Настройка RayGate скриптов ===
+echo -n "[6/10] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
-sed -i "s|__IFACE__|$IFACE|g" "$RAYGATE_ADD_PATH"
-sed -i "s|DNSMASQ_SOCK=.*|DNSMASQ_SOCK=/opt/var/run/raygate-dnsmasq.sock|g" "$RAYGATE_ADD_PATH"
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
 sed -i "s|__IFACE__|$IFACE|g" /opt/bin/raygate/raygate_watchdog.sh
 echo "OK!"
