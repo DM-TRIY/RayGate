@@ -6,7 +6,7 @@ CONF_DIR="/opt/etc/dnsmasq.d"
 CONF="$CONF_DIR/90-vpn-domains.conf"
 SET4="vpn_domains"
 IPSET_FILE="/opt/etc/vpn_domains.ipset"
-META_FILE="/opt/etc/vpn_domains.meta"
+DEFAULT_META_FILE="/opt/etc/vpn_domains.meta"
 DNS_PORT=5354
 
 if [ -z "$DOMAIN" ]; then
@@ -43,6 +43,8 @@ ipset save "$SET4" > "$IPSET_FILE"
 echo "✅ Домен $DOMAIN добавлен в VPN (новых IP: $ADDED)"
 
 # === Запись в META файл ===
+META_FILE="${META_FILE:-$DEFAULT_META_FILE}"
+mkdir -p "$(dirname "$META_FILE")"
 [ ! -f "$META_FILE" ] && touch "$META_FILE"
 if ! grep -q "^$DOMAIN," "$META_FILE"; then
     echo "$DOMAIN,$TAG" >> "$META_FILE"
