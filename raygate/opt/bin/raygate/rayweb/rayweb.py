@@ -110,25 +110,30 @@ def add_domain():
 def remove_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
-    domain = request.form.get("domain")
+    domain = request.form.get("domain", "").strip()
     mode = request.form.get("mode", "full")
 
-    # Удаляем через скрипт
-    try:
-        result = subprocess.check_output([XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True)
-    except subprocess.CalledProcessError as e:
-        result = e.output
+    if not domain:
+        result = "Domain is required"
+    else:
+        # Удаляем через скрипт
+        try:
+            result = subprocess.check_output([XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True)
+        except subprocess.CalledProcessError as e:
+            result = e.output
+        except FileNotFoundError:
+            result = ""
 
-    # Удаляем из META
-    try:
-        with open(META_FILE, "r") as f:
-            lines = f.readlines()
-        with open(META_FILE, "w") as f:
-            for l in lines:
-                if not l.startswith(f"{domain},"):
-                    f.write(l)
-    except FileNotFoundError:
-        pass
+        # Удаляем из META
+        try:
+            with open(META_FILE, "r") as f:
+                lines = f.readlines()
+            with open(META_FILE, "w") as f:
+                for l in lines:
+                    if not l.startswith(f"{domain},"):
+                        f.write(l)
+        except FileNotFoundError:
+            pass
 
     return render_template(
         "index.html",
