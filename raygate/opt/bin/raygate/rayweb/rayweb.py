@@ -1,9 +1,8 @@
-from flask import Flask, request, render_template_string, redirect, url_for, session, abort
+from flask import Flask, request, render_template, redirect, url_for, session, abort
 from collections import defaultdict
 import subprocess
 import bcrypt
 import ipaddress
-import socket
 import re
 
 # ==== Настройки ====
@@ -22,177 +21,6 @@ WAN_INTERFACE = "eth3"
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = SECRET_KEY
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>RayGate VPN Manager</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            background-color: #0d1117;
-            color: #e6edf3;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-        }
-        h2, h3 {
-            color: #58a6ff;
-        }
-        a {
-            color: #f55;
-            text-decoration: none;
-        }
-        .container {
-            padding: 20px;
-        }
-        .control-line {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-        form {
-            display: inline-block;
-            margin: 0;
-        }
-        input[type="text"], input[type="password"] {
-            padding: 6px 10px;
-            border: 1px solid #30363d;
-            border-radius: 5px;
-            background-color: #161b22;
-            color: #e6edf3;
-        }
-        button {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            background-color: #21262d;
-            color: #e6edf3;
-            transition: background 0.2s ease;
-        }
-        button:hover {
-            background-color: #30363d;
-        }
-        .btn-red {
-            background-color: #da3633;
-        }
-        .btn-red:hover {
-            background-color: #f85149;
-        }
-        table {
-            margin: auto;
-            border-collapse: collapse;
-            width: 100%;
-            background-color: #161b22;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        td {
-            padding: 8px;
-            border-bottom: 1px solid #30363d;
-        }
-        tr:hover {
-            background-color: #21262d;
-        }
-        pre {
-            text-align: left;
-            margin: auto;
-            background-color: #161b22;
-            padding: 12px;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-size: 14px;
-        }
-        .scroll-box {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            margin: auto;
-            width: 80%;
-            text-align: left;
-        }
-        .tag-header {
-            background-color: #21262d;
-            padding: 6px 10px;
-            font-weight: bold;
-            border-bottom: 1px solid #30363d;
-            position: sticky;
-            top: 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-    {% if not session.get('logged_in') %}
-        <h2>🔑 RayWeb Manager</h2>
-        <form method="POST" action="{{ url_for('login') }}">
-            <input type="text" name="username" placeholder="Username"><br><br>
-            <input type="password" name="password" placeholder="Password"><br><br>
-            <button type="submit">Login</button>
-        </form>
-    {% else %}
-        <h3>🖥 Command Output</h3>
-        <pre>{{ output }}</pre>
-
-        <div class="control-line">
-            <!-- XRAY Control -->
-            <form method="POST" action="{{ url_for('xray_control') }}">
-                <button name="action" value="start">▶ Start</button>
-                <button name="action" value="stop">⏹ Stop</button>
-                <button name="action" value="restart">🔄 Restart</button>
-                <button name="action" value="status">ℹ Status</button>
-            </form>
-
-            <!-- Add domain -->
-            <form method="POST" action="{{ url_for('add_domain') }}">
-                <input type="text" name="domain" placeholder="example.com" required>
-                <button type="submit">➕ Add</button>
-            </form>
-
-            <!-- Check IP -->
-            <form method="POST" action="{{ url_for('check_ip') }}">
-                <button type="submit">🌐 Check External IP's</button>
-            </form>
-        </div>
-
-        <h2>📜 Current Domains in VPN</h2>
-        <div class="scroll-box">
-            {% for tag, dom_list in grouped_domains.items() %}
-                <div class="tag-header">{{ tag }}</div>
-                <table>
-                    {% for domain in dom_list %}
-                    <tr>
-                        <td style="width:80%">{{ domain }}</td>
-                        <td>
-                            <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
-                                <input type="hidden" name="domain" value="{{ domain }}">
-                                <button type="submit" class="btn-red">🗑 Remove</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            {% endfor %}
-        </div>
-
-        <h3>📦 Current IPSet</h3>
-        <div class="scroll-box">
-            <pre>{{ ipset_list }}</pre>
-        </div>
-
-        <br>
-        <a href="{{ url_for('logout') }}">🚪 Logout</a>
-    {% endif %}
-    </div>
-</body>
-</html>
-"""
 
 
 # ==== Ограничение доступа по IP ====
@@ -228,8 +56,13 @@ def get_ipset_list():
 @app.route("/", methods=["GET"])
 def index():
     if not session.get("logged_in"):
-        return render_template_string(HTML_TEMPLATE)
-    return render_template_string(HTML_TEMPLATE, output="", ipset_list=get_ipset_list(), domains=get_domains())
+        return render_template("index.html")
+    return render_template(
+        "index.html",
+        output="",
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
 # ==== Логин ====
 @app.route("/login", methods=["POST"])
@@ -250,12 +83,28 @@ def logout():
 def add_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
-    domain = request.form.get("domain")
+    domain = request.form.get("domain", "").strip()
+    domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
+    if not domain_regex.fullmatch(domain):
+        result = "Invalid domain"
+        return render_template(
+            "index.html",
+            output=result,
+            ipset_list=get_ipset_list(),
+            grouped_domains=get_domains(),
+        )
     try:
-        result = subprocess.check_output([XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True)
+        result = subprocess.check_output(
+            [XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
+        )
     except subprocess.CalledProcessError as e:
         result = e.output
-    return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
 @app.route("/remove", methods=["POST"])
 def remove_domain():
@@ -281,7 +130,12 @@ def remove_domain():
     except FileNotFoundError:
         pass
 
-    return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
 
 # ==== Проверка IP ====
@@ -304,7 +158,12 @@ def check_ip():
     except subprocess.CalledProcessError:
         wan_ip = "Error"
     result = f"VPN IP: {vpn_ip}\nWAN IP: {wan_ip}"
-    return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
 # ==== Управление XRAY ====
 @app.route("/xray", methods=["POST"])
@@ -318,7 +177,12 @@ def xray_control():
         result = subprocess.check_output([XRAY_SERVICE, action], stderr=subprocess.STDOUT, text=True)
     except subprocess.CalledProcessError as e:
         result = e.output
-    return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9090)
