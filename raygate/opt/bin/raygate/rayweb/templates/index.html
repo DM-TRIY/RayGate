@@ -164,6 +164,7 @@
                         <td>
                             <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
                                 <input type="hidden" name="domain" value="{{ domain }}">
+                                <input type="hidden" name="mode" value="full">
                                 <button type="submit" class="btn-red">🗑 Remove</button>
                             </form>
                         </td>
