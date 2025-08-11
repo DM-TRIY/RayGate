@@ -11,6 +11,7 @@ PASSWORD_HASH = "__PASSHASH__"
 SECRET_KEY = "__SECRET__"
 XRAY_SERVICE = "/opt/etc/init.d/S99raygate"
 XRAY_ADD_SCRIPT = "/opt/bin/raygate/raygate_add.sh"
+XRAY_REM_SCRIPT = "/opt/bin/raygate/raygate_rem.sh"
 DNSMASQ_CONF = "/opt/etc/dnsmasq.d/90-vpn-domains.conf"
 IPSET_LIST_CMD = ["ipset", "list", "vpn_domains"]
 IPSET_SAVE_CMD = ["ipset", "save", "vpn_domains"]
@@ -26,78 +27,157 @@ HTML_TEMPLATE = """
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>VPN Domain Manager</title>
+    <title>RayGate VPN Manager</title>
     <style>
-        body { font-family: Arial; background-color: #111; color: #eee; text-align:center; }
-        .control-line { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .control-line form { display: inline-block; }
-        input[type="text"] { padding: 5px; }
-        button { padding: 5px 10px; }
-        table { margin: auto; border-collapse: collapse; }
-        td { padding: 5px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: #0d1117;
+            color: #e6edf3;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        h2, h3 {
+            color: #58a6ff;
+        }
+        a {
+            color: #f55;
+            text-decoration: none;
+        }
+        .container {
+            padding: 20px;
+        }
+        .control-line {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+        form {
+            display: inline-block;
+            margin: 0;
+        }
+        input[type="text"], input[type="password"] {
+            padding: 6px 10px;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            background-color: #161b22;
+            color: #e6edf3;
+        }
+        button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #21262d;
+            color: #e6edf3;
+            transition: background 0.2s ease;
+        }
+        button:hover {
+            background-color: #30363d;
+        }
+        .btn-red {
+            background-color: #da3633;
+        }
+        .btn-red:hover {
+            background-color: #f85149;
+        }
+        .btn-orange {
+            background-color: #d29922;
+        }
+        .btn-orange:hover {
+            background-color: #e3b341;
+        }
+        table {
+            margin: auto;
+            border-collapse: collapse;
+            width: 80%;
+            background-color: #161b22;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #30363d;
+        }
+        tr:hover {
+            background-color: #21262d;
+        }
+        pre {
+            text-align: left;
+            margin: auto;
+            width: 80%;
+            background-color: #161b22;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
     {% if not session.get('logged_in') %}
-        <h2>Login</h2>
+        <h2>🔑 Login</h2>
         <form method="POST" action="{{ url_for('login') }}">
             <input type="text" name="username" placeholder="Username"><br><br>
             <input type="password" name="password" placeholder="Password"><br><br>
             <button type="submit">Login</button>
         </form>
     {% else %}
-        <h3>Command Output</h3>
-        <pre style="text-align:left; margin:auto; width:80%; background-color:#222; padding:10px; border-radius:5px;">{{ output }}</pre>
+        <h3>🖥 Command Output</h3>
+        <pre>{{ output }}</pre>
 
         <div class="control-line">
             <!-- XRAY Control -->
             <form method="POST" action="{{ url_for('xray_control') }}">
-                <button name="action" value="start">Start</button>
-                <button name="action" value="stop">Stop</button>
-                <button name="action" value="restart">Restart</button>
-                <button name="action" value="status">Status</button>
+                <button name="action" value="start">▶ Start</button>
+                <button name="action" value="stop">⏹ Stop</button>
+                <button name="action" value="restart">🔄 Restart</button>
+                <button name="action" value="status">ℹ Status</button>
             </form>
 
             <!-- Add domain -->
             <form method="POST" action="{{ url_for('add_domain') }}">
                 <input type="text" name="domain" placeholder="example.com" required>
-                <button type="submit">Add</button>
+                <button type="submit">➕ Add</button>
             </form>
 
             <!-- Check IP -->
             <form method="POST" action="{{ url_for('check_ip') }}">
-                <button type="submit">Check External IP</button>
+                <button type="submit">🌐 Check External IP's</button>
             </form>
         </div>
 
-        <h2>Current Domains in VPN</h2>
+        <h2>📜 Current Domains in VPN</h2>
         <table>
             {% for domain in domains %}
             <tr>
                 <td>{{ domain }}</td>
                 <td>
-                    <!-- Удалить полностью -->
                     <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
                         <input type="hidden" name="domain" value="{{ domain }}">
                         <input type="hidden" name="mode" value="full">
-                        <button type="submit" style="color:red;">🗑 Полностью</button>
+                        <button type="submit" class="btn-red">🗑 Full Remove</button>
                     </form>
-                    <!-- Удалить только из dnsmasq -->
                     <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
                         <input type="hidden" name="domain" value="{{ domain }}">
                         <input type="hidden" name="mode" value="dns">
-                        <button type="submit" style="color:orange;">🚫 Только dnsmasq</button>
+                        <button type="submit" class="btn-orange">🚫 Remove</button>
                     </form>
                 </td>
             </tr>
             {% endfor %}
         </table>
 
-        <h3>Current IPSet</h3>
-        <pre style="text-align:left; margin:auto; width:80%; background-color:#222; padding:10px; border-radius:5px;">{{ ipset_list }}</pre>
+        <h3>📦 Current IPSet</h3>
+        <pre>{{ ipset_list }}</pre>
 
-        <a href="{{ url_for('logout') }}" style="color:#f55;">Logout</a>
+        <br>
+        <a href="{{ url_for('logout') }}">🚪 Logout</a>
     {% endif %}
+    </div>
 </body>
 </html>
 """
@@ -122,45 +202,6 @@ def get_domains():
         return sorted(domains)
     except FileNotFoundError:
         return []
-
-# ==== Удалить домен ====
-def remove_domain_from_ipset(domain, mode="full"):
-    try:
-        removed_ips = []
-        clean = domain.strip().lstrip('.')
-        if not re.match(r'^[A-Za-z0-9.-]+$', clean):
-            clean = ''
-
-        try:
-            with open(DNSMASQ_CONF, "r") as f:
-                lines = f.readlines()
-        except FileNotFoundError:
-            lines = []
-        with open(DNSMASQ_CONF, "w") as f:
-            for line in lines:
-                if not line.startswith(f"ipset=/{domain}/") and not line.startswith(f"ipset=/{clean}/"):
-                    f.write(line)
-        subprocess.run("kill -HUP $(pidof dnsmasq)", shell=True, check=False)
-
-        if mode == "full" and clean:
-            try:
-                ips = socket.gethostbyname_ex(clean)[2]
-                for ip in ips:
-                    subprocess.run(["ipset", "del", "vpn_domains", ip], check=False)
-                    removed_ips.append(ip)
-            except socket.gaierror:
-                pass
-
-        subprocess.run(IPSET_SAVE_CMD, stdout=open(IPSET_FILE, "w"))
-
-        if mode == "full" and removed_ips:
-            return f"Domain '{domain}' removed from dnsmasq. Removed IPs: {', '.join(removed_ips)}"
-        elif mode == "full":
-            return f"Domain '{domain}' removed from dnsmasq. No IPs removed from ipset."
-        else:
-            return f"Domain '{domain}' removed only from dnsmasq."
-    except Exception as e:
-        return f"Error removing {domain}: {e}"
 
 # ==== Получить список IP из ipset ====
 def get_ipset_list():
@@ -191,7 +232,6 @@ def logout():
     session.clear()
     return redirect(url_for("index"))
 
-# ==== Добавление домена ====
 @app.route("/add", methods=["POST"])
 def add_domain():
     if not session.get("logged_in"):
@@ -203,14 +243,16 @@ def add_domain():
         result = e.output
     return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
 
-# ==== Удаление домена ====
 @app.route("/remove", methods=["POST"])
 def remove_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
     domain = request.form.get("domain")
     mode = request.form.get("mode", "full")
-    result = remove_domain_from_ipset(domain, mode)
+    try:
+        result = subprocess.check_output([XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True)
+    except subprocess.CalledProcessError as e:
+        result = e.output
     return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
 
 # ==== Проверка IP ====
