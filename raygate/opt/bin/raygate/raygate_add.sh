@@ -6,74 +6,160 @@ CONF="$CONF_DIR/90-vpn-domains.conf"
 NOAAAA_CONF="$CONF_DIR/99-no-aaaa.conf"
 SET4="vpn_domains"
 TMP="/tmp/${TAG}.lst"
-RAW_URL="https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/${TAG}"
-DNS_SERVER="127.0.0.1"
-DNS_PORT="__PORT__"
+TMP_IPS="/tmp/${TAG}.ips"
+DNSMASQ_SOCK="/opt/var/run/raygate-dnsmasq.sock"
 TUN_PORT=9999
 IFACE="__IFACE__"
 IPSET_FILE="/opt/etc/vpn_domains.ipset"
 
+if [ -z "$TAG" ]; then
+  echo "Usage: $0 <domain|geosite-tag>"
+  exit 1
+fi
+
+mkdir -p "$CONF_DIR"
+
+# Создаём ipset, если нет
 if ! ipset list "$SET4" >/dev/null 2>&1; then
   ipset create "$SET4" hash:ip
   echo "✔ Создан ipset $SET4"
 fi
 
-mkdir -p "$CONF_DIR"
+# Создаём filter-aaaa, если нет
 if [ ! -f "$NOAAAA_CONF" ]; then
-  cat > "$NOAAAA_CONF" << 'EOF'
-filter-aaaa
-EOF
+  echo "filter-aaaa" > "$NOAAAA_CONF"
   echo "✔ Создан $NOAAAA_CONF (filter-aaaa)"
 fi
 
-[ -z "$TAG" ] && { echo "Usage: $0 <geosite-tag|domain>"; exit 1; }
+# Очищаем старые TMP
+> "$TMP"
+> "$TMP_IPS"
 
-echo "⏬ Загружаем список доменов для '$TAG'..."
-if curl -sfL "$RAW_URL" -o "$TMP"; then
-  echo "✔ Скачан список доменов из тега '$TAG'"
-else
-  echo "❗ Тег '$TAG' не найден — используем '$TAG' как одиночный домен"
-  echo "$TAG" > "$TMP"
-fi
+################################
+# 1. Geosite
+################################
+GEOSITE_URL="https://raw.githubusercontent.com/v2fly/domain-list-community/master/data/${TAG}"
+curl -sfL "$GEOSITE_URL" >> "$TMP" && echo "✔ Geosite: найден список для '$TAG'"
 
-ADDED=0
-touch "$CONF"
-while IFS= read -r line; do
-  domain="${line%%#*}"
-  domain="${domain#.}"
-  [ -z "$domain" ] && continue
-  entry="ipset=/${domain}/${SET4}"
-  entryw="ipset=/.${domain}/${SET4}"
-  grep -qxF "$entry" "$CONF" || { echo "$entry" >> "$CONF"; ADDED=$((ADDED+1)); }
-  grep -qxF "$entryw" "$CONF" || { echo "$entryw" >> "$CONF"; ADDED=$((ADDED+1)); }
-done < "$TMP"
-[ "$ADDED" -gt 0 ] && echo "✅ Добавлено $ADDED ipset-записей"
+################################
+# 2. crt.sh (SSL поддомены)
+################################
+CRT_URL="https://crt.sh/?q=%25$TAG&output=json"
+curl -s "$CRT_URL" \
+  | grep -oE '"name_value":"[^"]+"' \
+  | cut -d: -f2 | tr -d '"' \
+  | sed 's/\\n/\n/g' >> "$TMP" \
+  && echo "✔ crt.sh: поддомены добавлены"
 
-pidof dnsmasq >/dev/null && { kill -HUP "$(pidof dnsmasq)"; echo "dnsmasq перечитан"; }
+################################
+# 3. Passive DNS (hackertarget)
+################################
+HOSTSEARCH_URL="https://api.hackertarget.com/hostsearch/?q=$TAG"
+curl -sfL "$HOSTSEARCH_URL" | cut -d, -f1 >> "$TMP" && echo "✔ Passive DNS: поддомены добавлены"
 
-while IFS= read -r line; do
-  dom="${line%%#*}"
-  dom="${dom#.}"
-  [ -z "$dom" ] && continue
-  for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$dom" A +short +time=3 +tries=1); do
+################################
+# 4. Certspotter
+################################
+CERTSPOTTER_URL="https://api.certspotter.com/v1/issuances?domain=$TAG&include_subdomains=true&expand=dns_names"
+curl -s "$CERTSPOTTER_URL" \
+  | grep -oE '"dns_names":\[[^]]+\]' \
+  | grep -oE '"[^"]+"' \
+  | tr -d '"' >> "$TMP" \
+  && echo "✔ Certspotter: поддомены добавлены"
+
+################################
+# 5. RapidDNS
+################################
+RAPID_URL="https://rapiddns.io/subdomain/$TAG?full=1"
+curl -s "$RAPID_URL" | grep -oE '>[a-zA-Z0-9.-]+\.'$TAG'<' \
+  | sed 's/[<>]//g' >> "$TMP" \
+  && echo "✔ RapidDNS: поддомены добавлены"
+
+################################
+# 6. ThreatCrowd
+################################
+THREAT_URL="https://www.threatcrowd.org/searchApi/v2/domain/report/?domain=$TAG"
+curl -s "$THREAT_URL" \
+  | grep -oE '"domain":"[^"]+"' \
+  | cut -d: -f2 | tr -d '"' >> "$TMP" \
+  && echo "✔ ThreatCrowd: поддомены добавлены"
+
+################################
+# 7. Очистка и нормализация (первичный список)
+################################
+sort -u "$TMP" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed 's/^\*\.//' \
+  | sed 's/^\.\(.*\)/\1/' \
+  | sed 's/\.$//' \
+  | grep -Ev '(^$|localhost$|local$|localdomain$|invalid$|test$|example$)' \
+  > "$TMP.clean"
+mv "$TMP.clean" "$TMP"
+
+################################
+# 8. Резолвим первичный список → IP
+################################
+while read -r domain; do
+  for ip in $(dig +tcp @"$DNSMASQ_SOCK" "$domain" A +short +time=3 +tries=1); do
+    echo "$ip" >> "$TMP_IPS"
     ipset add "$SET4" "$ip" 2>/dev/null || true
   done
 done < "$TMP"
 
-rm -f "$TMP"
+################################
+# 9. ASN-поиск по IP → домены
+################################
+ASN_TMP="/tmp/${TAG}.asn.domains"
+> "$ASN_TMP"
+for ip in $(sort -u "$TMP_IPS"); do
+  ASN=$(whois -h whois.cymru.com " -v $ip" | awk 'NR>1 {print $1}' | tr -d ' ')
+  [ -z "$ASN" ] && continue
+  curl -s "https://api.hackertarget.com/aslookup/?q=AS$ASN" \
+    | grep -Eo '[a-zA-Z0-9.-]+' \
+    | grep -vE '^[0-9.]+$' >> "$ASN_TMP"
+done
 
-if [ "$TAG" = "twimg.com" ]; then
-  for sub in abs pbs video ton; do
-    echo "🔄 Добавляем $sub.$TAG"
-    "$0" "$sub.$TAG"
+# Добавляем найденные по ASN в основной список
+cat "$ASN_TMP" >> "$TMP"
+
+################################
+# 10. Финальная очистка списка (все домены)
+################################
+sort -u "$TMP" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed 's/^\*\.//' \
+  | sed 's/^\.\(.*\)/\1/' \
+  | sed 's/\.$//' \
+  | grep -Ev '(^$|localhost$|local$|localdomain$|invalid$|test$|example$)' \
+  > "$TMP.clean"
+mv "$TMP.clean" "$TMP"
+
+################################
+# 11. Запись в dnsmasq.conf
+################################
+ADDED=0
+touch "$CONF"
+while read -r domain; do
+  entry="ipset=/${domain}/${SET4}"
+  grep -qxF "$entry" "$CONF" || { echo "$entry" >> "$CONF"; ADDED=$((ADDED+1)); }
+done < "$TMP"
+[ "$ADDED" -gt 0 ] && echo "✅ В dnsmasq добавлено $ADDED записей"
+
+# Перечитываем dnsmasq
+pidof dnsmasq >/dev/null && kill -HUP "$(pidof dnsmasq)" && echo "🔄 dnsmasq перечитан"
+
+################################
+# 12. Резолвим финальный список и добавляем IP в ipset
+################################
+while read -r domain; do
+  for ip in $(dig +tcp @"$DNSMASQ_SOCK" "$domain" A +short +time=3 +tries=1); do
+    ipset add "$SET4" "$ip" 2>/dev/null || true
   done
-fi
+done < "$TMP"
 
-iptables -t nat -D PREROUTING -i "$IFACE" -p tcp -m set --match-set "$SET4" dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null
-iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set "$SET4" dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT"
+# Чистим временные файлы
+rm -f "$TMP" "$TMP_IPS" "$ASN_TMP"
 
+# Сохраняем ipset
 ipset save "$SET4" > "$IPSET_FILE"
 echo "💾 IpSet сохранён в $IPSET_FILE"
-
-ipset list "$SET4" | head -n 20
-
