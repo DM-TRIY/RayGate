@@ -31,7 +31,7 @@ no-poll
 no-resolv
 listen-address=127.0.0.1
 port=5354
-server=127.0.0.1#5353
+server=127.0.0.1#40500
 EOF
 echo "OK!"
 

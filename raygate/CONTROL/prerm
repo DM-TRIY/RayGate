@@ -20,6 +20,9 @@ else
     echo "[RayGate] RayWeb not running."
 fi
 
+echo "[RayGate] Clearing opkg cache..."
+rm -rf /opt/var/opkg-lists/*
+
 rm -f /opt/etc/rc.d/S99raygate
 
 rm -f /opt/var/run/xray.pid
