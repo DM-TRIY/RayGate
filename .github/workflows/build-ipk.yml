@@ -21,10 +21,8 @@ jobs:
           sed -i 's/\r//g' raygate/CONTROL/control
           sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/postinst
           sed -i 's/\r//g' raygate/CONTROL/postinst
-          # Убираем лидирующие пробелы
           sed -i 's/^[[:space:]]*\(Package\|Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
-          # Подставляем точную архитектуру
-          sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
+          # sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
           chmod 755 raygate/CONTROL/postinst
 
       - name: Extract version from control
