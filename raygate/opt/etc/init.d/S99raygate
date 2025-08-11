@@ -89,10 +89,17 @@ start)
     if [ -f "$PID_FILE" ] && ! ps -p "$(cat "$PID_FILE")" >/dev/null 2>&1; then
       rm -f "$PID_FILE"
     fi
+    
+    echo "Creating ipset backup..."
+    if ipset list vpn_domains >/dev/null 2>&1; then
+        ipset save vpn_domains > /opt/etc/vpn_domains.ipset.backup
+    fi
 
-    if [ -f "$IPSET_FILE" ]; then
-      echo "Restoring ipset vpn_domains from $IPSET_FILE..."
-      ipset restore < "$IPSET_FILE"
+    echo "Restoring ipset vpn_domains from $IPSET_FILE..."
+    if [ -s "$IPSET_FILE" ]; then
+        ipset restore < "$IPSET_FILE"
+    elif [ -s "/opt/etc/vpn_domains.ipset.backup" ]; then
+        ipset restore < /opt/etc/vpn_domains.ipset.backup
     fi
 
     if ! iptables -t nat -C PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
