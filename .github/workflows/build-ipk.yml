@@ -2,6 +2,8 @@ name: Build & Publish RayGate IPK
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -9,19 +11,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # === 1. Клонируем репозиторий с тегом ===
+      # === 1. Клонируем код ===
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # === 2. Извлекаем версию из тега и правим control ===
-      - name: Set version from tag
+      # === 2. Определяем версию ===
+      - name: Set version
         run: |
-          VERSION="${GITHUB_REF##*/}"    # refs/tags/v1.0.0 → v1.0.0
-          VERSION="${VERSION#v}"         # v1.0.0 → 1.0.0
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF##*/}"   # refs/tags/v1.0.0 → v1.0.0
+            VERSION="${VERSION#v}"        # v1.0.0 → 1.0.0
+          else
+            VERSION="$(grep -m1 -E '^Version:' raygate/CONTROL/control | awk '{print $2}')"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          sed -i "s/^Version:.*/Version: $VERSION/" raygate/CONTROL/control
 
-      # === 3. Нормализуем control и postinst ===
+          # Если тег — правим control
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            sed -i "s/^Version:.*/Version: $VERSION/" raygate/CONTROL/control
+          fi
+
+      # === 3. Нормализация control и postinst ===
       - name: Normalize control and postinst
         run: |
           sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/control
@@ -31,13 +41,13 @@ jobs:
           chmod 755 raygate/CONTROL/postinst
           chmod 755 raygate/CONTROL/prerm
 
-      # === 4. Подготавливаем build директории ===
+      # === 4. Подготовка директорий ===
       - name: Prepare build directories
         run: |
           rm -rf build
           mkdir -p build/CONTROL build/data
 
-      # === 5. Копируем control и данные ===
+      # === 5. Копирование control и данных ===
       - name: Copy files into control and data
         run: |
           cp raygate/CONTROL/control build/CONTROL/
@@ -45,17 +55,17 @@ jobs:
           cp raygate/CONTROL/prerm build/CONTROL/
           cp -r raygate/opt/ build/data/
 
-      # === 6. Создаём control.tar.gz и data.tar.gz ===
+      # === 6. Создание control.tar.gz и data.tar.gz ===
       - name: Build control.tar.gz and data.tar.gz
         run: |
           GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/CONTROL -czf build/control.tar.gz .
           GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/data    -czf build/data.tar.gz .
 
-      # === 7. Создаём debian-binary ===
+      # === 7. Создание debian-binary ===
       - name: Create debian-binary
         run: printf '2.0\n' > build/debian-binary
 
-      # === 8. Собираем IPK ===
+      # === 8. Сборка .ipk ===
       - name: Assemble .ipk
         run: |
           mkdir pkgroot
@@ -64,29 +74,38 @@ jobs:
           cp build/data.tar.gz pkgroot/
           GZIP=-n tar -C pkgroot -czf raygate_${VERSION}_all.ipk .
 
-      # === 9. Публикуем в GitHub Release ===
+      # === 9. Если это main — билд dev и заливаем как артефакт ===
+      - name: Upload artifact (dev build)
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: raygate_${{ env.VERSION }}_dev.ipk
+          path: raygate_${{ env.VERSION }}_all.ipk
+
+      # === 10. Если это тег — публикем релиз и opkg feed ===
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           files: raygate_${{ env.VERSION }}_all.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # === 10. Устанавливаем opkg-utils ===
-      - name: Install opkg-utils
-        run: |
-          git clone https://git.yoctoproject.org/opkg-utils
-          sudo make -C opkg-utils install
-
-      # === 11. Чекаутим gh-pages для opkg фида ===
       - name: Checkout gh-pages
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages
 
-      # === 12. Обновляем /all feed ===
+      - name: Install opkg-utils
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y opkg-utils
+
       - name: Update /all feed
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p gh-pages/all
           cp raygate_${VERSION}_all.ipk gh-pages/all/
@@ -94,8 +113,8 @@ jobs:
           opkg-make-index . > Packages
           gzip -k Packages
 
-      # === 13. Коммитим и пушим изменения в gh-pages ===
       - name: Commit & push gh-pages
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           cd gh-pages
           git config user.name "github-actions[bot]"
