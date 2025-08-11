@@ -99,11 +99,10 @@ jobs:
           path: gh-pages
 
       - name: Install opkg-utils
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          sudo apt-get update
-          sudo apt-get install -y opkg-utils
-
+            git clone https://git.yoctoproject.org/opkg-utils
+            sudo install -m 755 opkg-utils/opkg-make-index /usr/local/bin/opkg-make-index
+  
       - name: Update /all feed
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
