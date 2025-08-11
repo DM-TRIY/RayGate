@@ -59,6 +59,27 @@ get_xray_pid() {
     pgrep -f "$XRAY_BIN run" | head -n 1
 }
 
+warmup_ipset() {
+    CONF_FILE="/opt/etc/dnsmasq.d/90-vpn-domains.conf"
+    DNS_SERVER="127.0.0.1"
+    DNS_PORT="5353"
+    SET_NAME="vpn_domains"
+
+    [ -f "$CONF_FILE" ] || { 
+        echo "[RayGate] No $CONF_FILE found, skipping warmup."; 
+        return
+    }
+
+    echo "[RayGate] Warming up IPSet..."
+    grep -oP '(?<=ipset=/)[^/]+(?=/vpn_domains)' "$CONF_FILE" | sort -u | while read -r domain; do
+        for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$domain" A +short +time=3 +tries=1); do
+            ipset add "$SET_NAME" "$ip" 2>/dev/null || true
+        done
+    done
+    ipset save "$SET_NAME" > /opt/etc/vpn_domains.ipset
+    echo "[RayGate] Warmup completed."
+}
+
 start_rayweb() {
     if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
         echo "⚠️ RayWeb already running."
@@ -143,6 +164,7 @@ start)
       rm -f "$PID_FILE"
       exit 1
     fi
+    warmup_ipset
     ;;
 
   stop)
@@ -186,7 +208,7 @@ start)
     else
         echo "⚠️ rayweb is not running"
     fi
-    
+
     echo "Usage: $0 {start|stop|restart|status}"
     exit 1
     ;;

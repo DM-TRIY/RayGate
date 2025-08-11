@@ -55,7 +55,7 @@ while IFS= read -r line; do
   dom="${line%%#*}"
   dom="${dom#.}"
   [ -z "$dom" ] && continue
-  for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$dom" A +short); do
+  for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$dom" A +short +time=3 +tries=1); do
     ipset add "$SET4" "$ip" 2>/dev/null || true
   done
 done < "$TMP"
