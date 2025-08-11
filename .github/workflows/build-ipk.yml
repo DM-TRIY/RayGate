@@ -72,14 +72,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # === 10. Чекаутим gh-pages для opkg фида ===
+      # === 10. Устанавливаем opkg-utils ===
+      - name: Install opkg-utils
+        run: |
+          git clone https://git.yoctoproject.org/opkg-utils
+          sudo make -C opkg-utils install
+
+      # === 11. Чекаутим gh-pages для opkg фида ===
       - name: Checkout gh-pages
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages
 
-      # === 11. Обновляем /all feed ===
+      # === 12. Обновляем /all feed ===
       - name: Update /all feed
         run: |
           mkdir -p gh-pages/all
@@ -88,7 +94,7 @@ jobs:
           opkg-make-index . > Packages
           gzip -k Packages
 
-      # === 12. Коммитим и пушим изменения в gh-pages ===
+      # === 13. Коммитим и пушим изменения в gh-pages ===
       - name: Commit & push gh-pages
         run: |
           cd gh-pages
