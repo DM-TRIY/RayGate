@@ -65,7 +65,7 @@ read USERNAME
 echo -n "[5/7] Please enter PASSWORD for rayweb authorization: "
 read -s PASSWORD
 PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
-SECRET=$(head -c 16 /dev/urandom | xxd -p)
+SECRET=$(head -c 16 /dev/urandom | hexdump -v -e '/1 "%02x"')
 
 USERNAME_ESC=$(esc "$USERNAME")
 PASSHASH_ESC=$(esc "$PASSHASH")
