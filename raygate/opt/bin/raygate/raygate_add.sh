@@ -100,7 +100,7 @@ mv "$TMP.clean" "$TMP"
 # 8. Резолвим первичный список → IP
 ################################
 while read -r domain; do
-  for ip in $(dig +tcp @"$DNSMASQ_SOCK" "$domain" A +short +time=3 +tries=1); do
+  for ip in $(dig +tcp @127.0.0.1 -p 5354 "$domain" A +short +time=3 +tries=1); do
     echo "$ip" >> "$TMP_IPS"
     ipset add "$SET4" "$ip" 2>/dev/null || true
   done
@@ -152,7 +152,7 @@ pidof dnsmasq >/dev/null && kill -HUP "$(pidof dnsmasq)" && echo "🔄 dnsmasq �
 # 12. Резолвим финальный список и добавляем IP в ipset
 ################################
 while read -r domain; do
-  for ip in $(dig +tcp @"$DNSMASQ_SOCK" "$domain" A +short +time=3 +tries=1); do
+  for ip in $(dig +tcp @127.0.0.1 -p 5354 "$domain" A +short +time=3 +tries=1); do
     ipset add "$SET4" "$ip" 2>/dev/null || true
   done
 done < "$TMP"

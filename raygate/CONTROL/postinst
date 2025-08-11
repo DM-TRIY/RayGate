@@ -29,6 +29,8 @@ bogus-priv
 cache-size=0
 no-poll
 no-resolv
+listen-address=127.0.0.1
+port=5354
 server=127.0.0.1#5353
 EOF
 echo "OK!"
@@ -38,17 +40,15 @@ echo -n "[4/10] Stopping old RayGate dnsmasq if running... "
 pgrep -f "dnsmasq.*raygate-dnsmasq.sock" | xargs -r kill
 echo "OK!"
 
-# === Запускаем новый dnsmasq на сокете ===
+# === Запускаем новый dnsmasq на кастомном порту ===
 echo -n "[5/10] Starting dedicated RayGate dnsmasq... "
 dnsmasq \
   --conf-file=/opt/etc/dnsmasq.raygate.conf \
-  --unix-socket=/opt/var/run/raygate-dnsmasq.sock \
-  --bind-dynamic \
   --keep-in-foreground \
   --log-facility=/opt/var/log/raygate-dnsmasq.log &
 sleep 1
 
-if [ -S /opt/var/run/raygate-dnsmasq.sock ]; then
+if pgrep -f "dnsmasq.*dnsmasq.raygate.conf" >/dev/null; then
   echo "OK!"
 else
   echo "FAILED!"
