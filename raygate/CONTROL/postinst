@@ -11,6 +11,7 @@ echo "OK!"
 
 # === Проверка директорий ===
 echo -n "[2/7] Checking directories... "
+mkdir -p /opt/etc/rc.d
 mkdir -p /opt/etc/dnsmasq.d
 mkdir -p /opt/etc/xray
 mkdir -p /opt/var/log/xray
@@ -62,7 +63,7 @@ echo "[4/7] config.json created!"
 echo "[5/7] Configuring web interface..."
 echo -n "[5/7] Please enter USERNAME for rayweb authorization: "
 read USERNAME
-echo -n "[5/7] Please enter PASSWORD for rayweb authorization: "
+echo "[5/7] Please enter PASSWORD for rayweb authorization: "
 read -s PASSWORD
 PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
 SECRET=$(head -c 16 /dev/urandom | hexdump -v -e '/1 "%02x"')
@@ -84,10 +85,10 @@ chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
 
 # === Автозапуск и старт ===
-echo -n "[7/7] Starting RayGate... "
+echo -e "[7/7] Starting RayGate...\n"
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
-echo "OK!"
+echo "[7/7] RayGate started!"
 
 # === Итог ===
 BR_IP=$(ip -o -4 addr show dev "$IFACE" | awk '{print $4}' | cut -d/ -f1)
