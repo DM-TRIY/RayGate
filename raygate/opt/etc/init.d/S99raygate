@@ -180,8 +180,8 @@ start)
       echo "[i] Xray is not running"
     fi
 
-    if pgrep -f "python3 app.py" >/dev/null 2>&1; then
-      wpid=$(pgrep -f "python3 app.py" | head -n1)
+    if pgrep -f "python3 rayweb.py" >/dev/null 2>&1; then
+      wpid=$(pgrep -f "python3 rayweb.py" | head -n1)
       echo "✅ rayweb is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
     else
       echo "[i] rayweb is not running"
