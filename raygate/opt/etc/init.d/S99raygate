@@ -186,8 +186,7 @@ start)
     else
         echo "⚠️ rayweb is not running"
     fi
-
-  *)
+    
     echo "Usage: $0 {start|stop|restart|status}"
     exit 1
     ;;
