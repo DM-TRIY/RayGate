@@ -42,7 +42,7 @@ jobs:
         run: |
           cp raygate/CONTROL/control build/CONTROL/
           cp raygate/CONTROL/postinst build/CONTROL/
-          cp -r raygate/opt/* build/data/
+          cp -r raygate/opt/ build/data/
 
       - name: Build control.tar.gz and data.tar.gz
         run: |
