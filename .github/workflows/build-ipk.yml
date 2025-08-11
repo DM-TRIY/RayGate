@@ -24,6 +24,7 @@ jobs:
           sed -i 's/^[[:space:]]*\(Package\|Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
           # sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
           chmod 755 raygate/CONTROL/postinst
+          chmod 755 build/CONTROL/prerm
 
       - name: Extract version from control
         id: get_version
@@ -40,6 +41,7 @@ jobs:
         run: |
           cp raygate/CONTROL/control build/CONTROL/
           cp raygate/CONTROL/postinst build/CONTROL/
+          cp raygate/CONTROL/prerm build/CONTROL/
           cp -r raygate/opt/ build/data/
 
       - name: Build control.tar.gz and data.tar.gz
