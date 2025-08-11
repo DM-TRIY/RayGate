@@ -115,7 +115,8 @@ jobs:
           rm -f raygate_*.ipk Packages Packages.gz
           cp ../../raygate_${VERSION}_all.ipk .
           opkg-make-index . > Packages
-          gzip -fk Packages               
+          gzip -fk Packages
+                  
 
       - name: Commit & push gh-pages
         if: startsWith(github.ref, 'refs/tags/v')
