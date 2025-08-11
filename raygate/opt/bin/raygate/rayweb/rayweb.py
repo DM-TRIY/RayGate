@@ -120,12 +120,30 @@ def remove_domain():
         result = "Domain is required"
     else:
         # Удаляем через скрипт
+        script_failed = False
         try:
-            result = subprocess.check_output([XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True)
+            result = subprocess.check_output(
+                [XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True
+            )
         except subprocess.CalledProcessError as e:
             result = e.output
+            script_failed = True
         except FileNotFoundError:
             result = ""
+            script_failed = True
+
+        if script_failed:
+            try:
+                with open(DNSMASQ_CONF, "r") as f:
+                    lines = f.readlines()
+                with open(DNSMASQ_CONF, "w") as f:
+                    for line in lines:
+                        if line.strip() != f"ipset={domain}/vpn_domains":
+                            f.write(line)
+                subprocess.run(["sh", "-c", "kill -HUP $(pidof dnsmasq)"], check=True)
+                result = "Domain removed successfully"
+            except Exception:
+                result = "Failed to remove domain"
 
         # Удаляем из META
         try:
