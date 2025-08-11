@@ -7,26 +7,26 @@ echo "=== RayGate Post-install script ==="
 # === Python-зависимости ===
 echo -n "[1/7] Installing Python packages... "
 pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1
-echo "[1/7] Python libraries installed!"
+echo "OK!"
 
-# === Подготовка директорий (если их вдруг нет) ===
-echo "[2/7] Checking directories..."
+# === Проверка директорий ===
+echo -n "[2/7] Checking directories... "
 mkdir -p /opt/etc/dnsmasq.d
 mkdir -p /opt/etc/xray
 mkdir -p /opt/var/log/xray
-echo "[2/7] Directories created!"
+echo "OK!"
 
 CONFIG_PATH="/opt/etc/xray/config.json"
 RAYWEB_PATH="/opt/bin/raygate/rayweb/rayweb.py"
 RAYGATE_ADD_PATH="/opt/bin/raygate/raygate_add.sh"
 
 # === raygate_add.sh ===
-echo "[3/7] Configuring raygate_add..."
+echo -n "[3/7] Configuring raygate_add... "
 DNS_PORT=$(netstat -lnp 2>/dev/null | awk '/dnsmasq/ && /udp/ {split($4,a,":"); print a[2]; exit}')
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
-sed -i "s#__PORT__#$DNS_PORT#g" "$RAYGATE_ADD_PATH"
-sed -i "s#__IFACE__#$IFACE#g" "$RAYGATE_ADD_PATH"
-echo "[3/7] raygate_add.sh configured!"
+sed -i "s|__PORT__|$DNS_PORT|g" "$RAYGATE_ADD_PATH"
+sed -i "s|__IFACE__|$IFACE|g" "$RAYGATE_ADD_PATH"
+echo "OK!"
 
 # === config.json ===
 echo "[4/7] Writing config..."
@@ -40,12 +40,22 @@ SNI=$(echo "$VLESS" | tr '&' '\n' | grep '^sni=' | cut -d= -f2)
 PUBKEY=$(echo "$VLESS" | tr '&' '\n' | grep '^pbk=' | cut -d= -f2)
 SHORTID=$(echo "$VLESS" | tr '&' '\n' | grep '^sid=' | cut -d= -f2)
 
-sed -i "s#__ADDRESS__#${ADDRESS//\//\\/}#g" "$CONFIG_PATH"
-sed -i "s#__PORT__#$PORT#g" "$CONFIG_PATH"
-sed -i "s#__UUID__#$UUID#g" "$CONFIG_PATH"
-sed -i "s#__SNI__#$SNI#g" "$CONFIG_PATH"
-sed -i "s#__PUBKEY__#$PUBKEY#g" "$CONFIG_PATH"
-sed -i "s#__SHORTID__#$SHORTID#g" "$CONFIG_PATH"
+# Экранируем &, | и /
+esc() { echo "$1" | sed 's/[&|/]/\\&/g'; }
+
+ADDRESS_ESC=$(esc "$ADDRESS")
+PORT_ESC=$(esc "$PORT")
+UUID_ESC=$(esc "$UUID")
+SNI_ESC=$(esc "$SNI")
+PUBKEY_ESC=$(esc "$PUBKEY")
+SHORTID_ESC=$(esc "$SHORTID")
+
+sed -i "s|__ADDRESS__|$ADDRESS_ESC|g" "$CONFIG_PATH"
+sed -i "s|__PORT__|$PORT_ESC|g" "$CONFIG_PATH"
+sed -i "s|__UUID__|$UUID_ESC|g" "$CONFIG_PATH"
+sed -i "s|__SNI__|$SNI_ESC|g" "$CONFIG_PATH"
+sed -i "s|__PUBKEY__|$PUBKEY_ESC|g" "$CONFIG_PATH"
+sed -i "s|__SHORTID__|$SHORTID_ESC|g" "$CONFIG_PATH"
 echo "[4/7] config.json created!"
 
 # === rayweb.py ===
@@ -56,23 +66,28 @@ echo -n "[5/7] Please enter PASSWORD for rayweb authorization: "
 read -s PASSWORD
 PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
 SECRET=$(head -c 16 /dev/urandom | xxd -p)
-sed -i "s#__USERNAME__#$USERNAME#g" "$RAYWEB_PATH"
-sed -i "s#__PASSHASH__#$PASSHASH#g" "$RAYWEB_PATH"
-sed -i "s#__SECRET__#$SECRET#g" "$RAYWEB_PATH"
+
+USERNAME_ESC=$(esc "$USERNAME")
+PASSHASH_ESC=$(esc "$PASSHASH")
+SECRET_ESC=$(esc "$SECRET")
+
+sed -i "s|__USERNAME__|$USERNAME_ESC|g" "$RAYWEB_PATH"
+sed -i "s|__PASSHASH__|$PASSHASH_ESC|g" "$RAYWEB_PATH"
+sed -i "s|__SECRET__|$SECRET_ESC|g" "$RAYWEB_PATH"
 echo "[5/7] rayweb.py configured!"
 
 # === Права на исполнение ===
-echo "[6/7] Setting permissions..."
+echo -n "[6/7] Setting permissions... "
 chmod +x "$RAYWEB_PATH"
 chmod +x "$RAYGATE_ADD_PATH"
 chmod +x /opt/etc/init.d/S99raygate
-echo "[6/7] Permissions set!"
+echo "OK!"
 
 # === Автозапуск и старт ===
-echo "[7/7] Starting RayGate..."
+echo -n "[7/7] Starting RayGate... "
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
-echo "[7/7] RayGate started!"
+echo "OK!"
 
 # === Итог ===
 BR_IP=$(ip -o -4 addr show dev "$IFACE" | awk '{print $4}' | cut -d/ -f1)
