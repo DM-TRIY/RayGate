@@ -24,7 +24,7 @@ jobs:
           sed -i 's/^[[:space:]]*\(Package\|Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
           # sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
           chmod 755 raygate/CONTROL/postinst
-          chmod 755 build/CONTROL/prerm
+          chmod 755 raygate/CONTROL/prerm
 
       - name: Extract version from control
         id: get_version
