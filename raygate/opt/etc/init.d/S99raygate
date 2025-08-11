@@ -8,6 +8,8 @@
 # Short-Description: Xray service control
 ### END INIT INFO
 
+TUN_PORT=$(grep -A2 '"tag": "tproxy-in"' /opt/etc/xray/config.json | grep '"port"' | grep -oE '[0-9]+')
+IFACE="__IFACE__"
 XRAY_BIN="/opt/sbin/xray"
 XRAY_CONF="/opt/etc/xray/config.json"
 XRAY_LOG_DIR="/opt/var/log/xray"
@@ -105,13 +107,13 @@ start)
         echo "⚠️ No ipset file or backup found. Skipping restore."
     fi
 
-    if ! iptables -t nat -C PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
-        -j REDIRECT --to-ports 12345 2>/dev/null; then
-        iptables -t nat -A PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
-        -j REDIRECT --to-ports 12345
-        echo "✅ iptables rule added"
+    if ! iptables -t nat -C PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
+        -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null; then
+        iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
+            -j REDIRECT --to-ports "$TUN_PORT"
+        echo "✅ iptables rule added (port $TUN_PORT, iface $IFACE)"
     else
-        echo "⚠️ iptables rule already exists"
+        echo "⚠️ iptables rule already exists (port $TUN_PORT, iface $IFACE)"
     fi
 
     if [ ! -x "$XRAY_BIN" ]; then

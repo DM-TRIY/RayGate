@@ -21,12 +21,13 @@ CONFIG_PATH="/opt/etc/xray/config.json"
 RAYWEB_PATH="/opt/bin/raygate/rayweb/rayweb.py"
 RAYGATE_ADD_PATH="/opt/bin/raygate/raygate_add.sh"
 
-# === raygate_add.sh ===
+# === raygate_add.sh + iface in s99raygate===
 echo -n "[3/7] Configuring raygate_add... "
 DNS_PORT=$(netstat -lnp 2>/dev/null | awk '/dnsmasq/ && /udp/ {split($4,a,":"); print a[2]; exit}')
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__PORT__|$DNS_PORT|g" "$RAYGATE_ADD_PATH"
 sed -i "s|__IFACE__|$IFACE|g" "$RAYGATE_ADD_PATH"
+sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
 echo "OK!"
 
 # === config.json ===
