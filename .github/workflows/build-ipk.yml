@@ -1,9 +1,7 @@
-name: Build RayGate IPK
+name: Build & Publish RayGate IPK
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
@@ -11,32 +9,35 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # === 1. Клонируем репозиторий с тегом ===
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # === 2. Извлекаем версию из тега и правим control ===
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF##*/}"    # refs/tags/v1.0.0 → v1.0.0
+          VERSION="${VERSION#v}"         # v1.0.0 → 1.0.0
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          sed -i "s/^Version:.*/Version: $VERSION/" raygate/CONTROL/control
+
+      # === 3. Нормализуем control и postinst ===
       - name: Normalize control and postinst
         run: |
-          # Убираем BOM/CRLF
           sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/control
           sed -i 's/\r//g' raygate/CONTROL/control
           sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/postinst
           sed -i 's/\r//g' raygate/CONTROL/postinst
-          sed -i 's/^[[:space:]]*\(Package\|Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
-          # sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
           chmod 755 raygate/CONTROL/postinst
           chmod 755 raygate/CONTROL/prerm
 
-      - name: Extract version from control
-        id: get_version
-        run: |
-          VERSION=$(grep -m1 -E '^Version:' raygate/CONTROL/control | awk '{print $2}')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
+      # === 4. Подготавливаем build директории ===
       - name: Prepare build directories
         run: |
           rm -rf build
           mkdir -p build/CONTROL build/data
 
+      # === 5. Копируем control и данные ===
       - name: Copy files into control and data
         run: |
           cp raygate/CONTROL/control build/CONTROL/
@@ -44,15 +45,18 @@ jobs:
           cp raygate/CONTROL/prerm build/CONTROL/
           cp -r raygate/opt/ build/data/
 
+      # === 6. Создаём control.tar.gz и data.tar.gz ===
       - name: Build control.tar.gz and data.tar.gz
         run: |
           GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/CONTROL -czf build/control.tar.gz .
           GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/data    -czf build/data.tar.gz .
 
+      # === 7. Создаём debian-binary ===
       - name: Create debian-binary
         run: printf '2.0\n' > build/debian-binary
 
-      - name: Assemble .ipk (OpenWrt style)
+      # === 8. Собираем IPK ===
+      - name: Assemble .ipk
         run: |
           mkdir pkgroot
           cp build/debian-binary pkgroot/
@@ -60,19 +64,36 @@ jobs:
           cp build/data.tar.gz pkgroot/
           GZIP=-n tar -C pkgroot -czf raygate_${VERSION}_all.ipk .
 
-      - name: Copy dev build
-        run: cp raygate_${VERSION}_all.ipk raygate_${VERSION}_dev.ipk
-
-      - name: Upload artifact (dev build)
-        uses: actions/upload-artifact@v4
-        with:
-          name: raygate_${{ env.VERSION }}_dev.ipk
-          path: raygate_${{ env.VERSION }}_dev.ipk
-
-      - name: Create Release (only on tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      # === 9. Публикуем в GitHub Release ===
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: raygate_${{ env.VERSION }}_all.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # === 10. Чекаутим gh-pages для opkg фида ===
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      # === 11. Обновляем /all feed ===
+      - name: Update /all feed
+        run: |
+          mkdir -p gh-pages/all
+          cp raygate_${VERSION}_all.ipk gh-pages/all/
+          cd gh-pages/all
+          opkg-make-index . > Packages
+          gzip -k Packages
+
+      # === 12. Коммитим и пушим изменения в gh-pages ===
+      - name: Commit & push gh-pages
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add all/
+          git commit -m "Update feed to v${VERSION}"
+          git push origin gh-pages
