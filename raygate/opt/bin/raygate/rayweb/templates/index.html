@@ -99,9 +99,27 @@
             position: sticky;
             top: 0;
         }
+        .logout-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background-color: #da3633;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s ease;
+        }
+        .logout-btn:hover {
+            background-color: #f85149;
+        }
     </style>
 </head>
 <body>
+    {% if session.get('logged_in') %}
+    <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout</a>
+    {% endif %}
     <div class="container">
     {% if not session.get('logged_in') %}
         <h2>🔑 RayWeb Manager</h2>
@@ -159,9 +177,6 @@
         <div class="scroll-box">
             <pre>{{ ipset_list }}</pre>
         </div>
-
-        <br>
-        <a href="{{ url_for('logout') }}">🚪 Logout</a>
     {% endif %}
     </div>
 </body>
