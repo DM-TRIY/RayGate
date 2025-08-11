@@ -12,6 +12,10 @@ mkdir -p /opt/var/log/xray
 
 echo "[RayGate] Dir's created!"
 
+echo "[2/5] Writing config..."
+echo "[2/5] Please enter your vless:// link:"
+read -r VLESS
+
 echo "[RayGate] Installing python libs..."
 
 pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1 || true
