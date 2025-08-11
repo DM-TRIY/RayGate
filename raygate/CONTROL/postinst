@@ -1,36 +1,73 @@
 #!/bin/sh
+
 set -e
 
-echo "[RayGate] Running post-install auto-setup..."
+echo "=== RayGate Post-install script ==="
 
+# === Python-зависимости ===
+echo -n "[1/6] Installing Python packages... "
+pip3 install --no-cache-dir flask bcrypt
+echo "OK!"
 
-echo "[RayGate] Creating dir's..."
-
+# === Подготовка директорий (если их вдруг нет) ===
 mkdir -p /opt/etc/dnsmasq.d
 mkdir -p /opt/etc/xray
 mkdir -p /opt/var/log/xray
 
-echo "[RayGate] Dir's created!"
+CONFIG_PATH="/opt/etc/xray/config.json"
+RAYWEB_PATH="/opt/bin/raygate/rayweb/rayweb.py"
+RAYGATE_ADD_PATH="/opt/bin/raygate/raygate_add.sh"
 
-echo "[2/5] Writing config..."
-echo "[2/5] Please enter your vless:// link:"
+# === raygate_add.sh ===
+DNS_PORT=$(netstat -lnp 2>/dev/null | awk '/dnsmasq/ && /udp/ {split($4,a,":"); print a[2]; exit}')
+IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
+sed -i "s#__PORT__#$DNS_PORT#g" "$RAYGATE_ADD_PATH"
+sed -i "s#__IFACE__#$IFACE#g" "$RAYGATE_ADD_PATH"
+echo "[2/6] raygate_add.sh configured!"
+
+# === config.json ===
+echo "[3/6] Please enter your vless:// link:"
 read -r VLESS
+ADDRESS=$(echo "$VLESS" | sed -n 's#.*@\([^:]*\):.*#\1#p')
+PORT=$(echo "$VLESS" | sed -n 's#.*:\([0-9]*\)?.*#\1#p')
+UUID=$(echo "$VLESS" | sed -n 's#vless://\([^@]*\)@.*#\1#p')
+SNI=$(echo "$VLESS" | sed -n '(?<=sni=)[^&]*')
+PUBKEY=$(echo "$VLESS" | sed -n '(?<=pbk=)[^&]*')
+SHORTID=$(echo "$VLESS" | sed -n '(?<=sid=)[^&]*')
 
-echo "[RayGate] Installing python libs..."
+sed -i "s#__ADDRESS__#${ADDRESS//\//\\/}#g" "$CONFIG_PATH"
+sed -i "s#__PORT__#$PORT#g" "$CONFIG_PATH"
+sed -i "s#__UUID__#$UUID#g" "$CONFIG_PATH"
+sed -i "s#__SNI__#$SNI#g" "$CONFIG_PATH"
+sed -i "s#__PUBKEY__#$PUBKEY#g" "$CONFIG_PATH"
+sed -i "s#__SHORTID__#$SHORTID#g" "$CONFIG_PATH"
+echo "[3/6] config.json configured!"
 
-pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1 || true
+# === rayweb.py ===
+echo -n "[4/6] Please enter USERNAME for rayweb authorization: "
+read USERNAME
+echo -n "[4/6] Please enter PASSWORD for rayweb authorization: "
+read -s PASSWORD
+PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
+SECRET=$(head -c 16 /dev/urandom | xxd -p)
+sed -i "s#__USERNAME__#$USERNAME#g" "$RAYWEB_PATH"
+sed -i "s#__PASSHASH__#$PASSHASH#g" "$RAYWEB_PATH"
+sed -i "s#__SECRET__#$SECRET#g" "$RAYWEB_PATH"
+echo "[4/6] rayweb.py configured!"
 
-echo "[RayGate] Python libs installed!"
+# === Права на исполнение ===
+chmod +x "$RAYWEB_PATH"
+chmod +x "$RAYGATE_ADD_PATH"
+chmod +x /opt/etc/init.d/S99raygate
+echo "[5/6] Permissions set!"
 
-echo "[RayGate] Setting permissions..."
+# === Автозапуск и старт ===
+/opt/etc/init.d/S99raygate enable
+/opt/etc/init.d/S99raygate start
+echo "[6/6] RayGate started!"
 
-chmod +x /opt/etc/init.d/S99raygate 2>/dev/null || true
-chmod +x /opt/bin/raygate/raygate_add.sh 2>/dev/null || true
-chmod +x /opt/bin/raygate/rayweb/rayweb.py 2>/dev/null || true
-chmod +x /opt/bin/raygate/raygate_configure.sh 2>/dev/null || true
-
-echo "[RayGate] Permissions set!"
-
-echo "[RayGate] Done!"
-echo "[RayGate] Для завершения настройки и конфигурации RayGate под ваше устройство выполните:"
-echo "sh  /opt/bin/raygate/raygate_configure.sh"
+# === Итог ===
+BR_IP=$(ip -o -4 addr show dev "$IFACE" | awk '{print $4}' | cut -d/ -f1)
+echo "=== Installation complete! ==="
+echo "Web UI available at: http://$BR_IP:9090"
+echo "=== Enjoy! ==="
