@@ -23,7 +23,17 @@ RAYGATE_ADD_PATH="/opt/bin/raygate/raygate_add.sh"
 
 # === Конфиг для отдельного dnsmasq под RayGate ===
 echo -n "[3/10] Creating RayGate dnsmasq config... "
-cat > /opt/etc/dnsmasq.raygate.conf <<'EOF'
+
+# Detect port of the system DNS resolver (default 53). We try common
+# locations for dnsmasq configuration and fall back to the standard port
+# if it is not explicitly defined. This avoids hardcoding port 53 so the
+# script can work on systems where the resolver listens on a different
+# port.
+DNS_SYS_PORT=$(grep -m1 '^port=' /opt/etc/dnsmasq.conf 2>/dev/null | cut -d= -f2)
+[ -n "$DNS_SYS_PORT" ] || DNS_SYS_PORT=$(grep -m1 '^port=' /etc/dnsmasq.conf 2>/dev/null | cut -d= -f2)
+[ -n "$DNS_SYS_PORT" ] || DNS_SYS_PORT=53
+
+cat > /opt/etc/dnsmasq.raygate.conf <<EOF
 domain-needed
 bogus-priv
 cache-size=0
@@ -31,7 +41,7 @@ no-poll
 no-resolv
 listen-address=127.0.0.1
 port=5354
-server=127.0.0.1#53
+server=127.0.0.1#$DNS_SYS_PORT
 EOF
 echo "OK!"
 
