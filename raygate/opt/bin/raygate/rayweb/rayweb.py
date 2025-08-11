@@ -18,7 +18,6 @@ IPSET_LIST_CMD = ["ipset", "list", "vpn_domains"]
 IPSET_SAVE_CMD = ["ipset", "save", "vpn_domains"]
 IPSET_FILE = "/opt/etc/vpn_domains.ipset"
 WAN_INTERFACE = "eth3"
-REM_SUPPORTED_MODES = {"full"}
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = SECRET_KEY
@@ -114,9 +113,6 @@ def remove_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
     domain = request.form.get("domain", "").strip()
-    mode = request.form.get("mode", "full")
-    if mode not in REM_SUPPORTED_MODES:
-        mode = "full"
 
     if not domain:
         result = "Domain is required"
@@ -125,7 +121,7 @@ def remove_domain():
         script_failed = False
         try:
             result = subprocess.check_output(
-                [XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True
+                [XRAY_REM_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
             )
         except subprocess.CalledProcessError as e:
             result = e.output
