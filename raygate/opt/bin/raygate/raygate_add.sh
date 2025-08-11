@@ -39,3 +39,11 @@ pidof dnsmasq >/dev/null && kill -HUP "$(pidof dnsmasq)"
 ipset save "$SET4" > "$IPSET_FILE"
 
 echo "✅ Домен $TAG добавлен в VPN (новых IP: $ADDED)"
+
+# === Запись в META файл ===
+[ ! -f "$META_FILE" ] && touch "$META_FILE"
+TAG=$(echo "$DOMAIN" | awk -F. '{print $1}')
+if ! grep -q "^$DOMAIN," "$META_FILE"; then
+    echo "$DOMAIN,$TAG" >> "$META_FILE"
+    echo "💾 Added to meta: $DOMAIN ($TAG)"
+fi

@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template_string, redirect, url_for, session, abort
+from collections import defaultdict
 import subprocess
 import bcrypt
 import ipaddress
@@ -12,6 +13,7 @@ SECRET_KEY = "__SECRET__"
 XRAY_SERVICE = "/opt/etc/init.d/S99raygate"
 XRAY_ADD_SCRIPT = "/opt/bin/raygate/raygate_add.sh"
 XRAY_REM_SCRIPT = "/opt/bin/raygate/raygate_rem.sh"
+META_FILE = "/opt/etc/vpn_domains.meta"
 DNSMASQ_CONF = "/opt/etc/dnsmasq.d/90-vpn-domains.conf"
 IPSET_LIST_CMD = ["ipset", "list", "vpn_domains"]
 IPSET_SAVE_CMD = ["ipset", "save", "vpn_domains"]
@@ -21,7 +23,6 @@ WAN_INTERFACE = "eth3"
 app = Flask(__name__, static_folder='static')
 app.secret_key = SECRET_KEY
 
-# ==== HTML шаблон ====
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -83,16 +84,10 @@ HTML_TEMPLATE = """
         .btn-red:hover {
             background-color: #f85149;
         }
-        .btn-orange {
-            background-color: #d29922;
-        }
-        .btn-orange:hover {
-            background-color: #e3b341;
-        }
         table {
             margin: auto;
             border-collapse: collapse;
-            width: 80%;
+            width: 100%;
             background-color: #161b22;
             border-radius: 6px;
             overflow: hidden;
@@ -107,19 +102,35 @@ HTML_TEMPLATE = """
         pre {
             text-align: left;
             margin: auto;
-            width: 80%;
             background-color: #161b22;
             padding: 12px;
             border-radius: 6px;
             overflow-x: auto;
             font-size: 14px;
         }
+        .scroll-box {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            margin: auto;
+            width: 80%;
+            text-align: left;
+        }
+        .tag-header {
+            background-color: #21262d;
+            padding: 6px 10px;
+            font-weight: bold;
+            border-bottom: 1px solid #30363d;
+            position: sticky;
+            top: 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
     {% if not session.get('logged_in') %}
-        <h2>🔑 Login</h2>
+        <h2>🔑 RayWeb Manager</h2>
         <form method="POST" action="{{ url_for('login') }}">
             <input type="text" name="username" placeholder="Username"><br><br>
             <input type="password" name="password" placeholder="Password"><br><br>
@@ -151,28 +162,29 @@ HTML_TEMPLATE = """
         </div>
 
         <h2>📜 Current Domains in VPN</h2>
-        <table>
-            {% for domain in domains %}
-            <tr>
-                <td>{{ domain }}</td>
-                <td>
-                    <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
-                        <input type="hidden" name="domain" value="{{ domain }}">
-                        <input type="hidden" name="mode" value="full">
-                        <button type="submit" class="btn-red">🗑 Full Remove</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
-                        <input type="hidden" name="domain" value="{{ domain }}">
-                        <input type="hidden" name="mode" value="dns">
-                        <button type="submit" class="btn-orange">🚫 Remove</button>
-                    </form>
-                </td>
-            </tr>
+        <div class="scroll-box">
+            {% for tag, dom_list in grouped_domains.items() %}
+                <div class="tag-header">{{ tag }}</div>
+                <table>
+                    {% for domain in dom_list %}
+                    <tr>
+                        <td style="width:80%">{{ domain }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('remove_domain') }}" style="display:inline;">
+                                <input type="hidden" name="domain" value="{{ domain }}">
+                                <button type="submit" class="btn-red">🗑 Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
             {% endfor %}
-        </table>
+        </div>
 
         <h3>📦 Current IPSet</h3>
-        <pre>{{ ipset_list }}</pre>
+        <div class="scroll-box">
+            <pre>{{ ipset_list }}</pre>
+        </div>
 
         <br>
         <a href="{{ url_for('logout') }}">🚪 Logout</a>
@@ -181,6 +193,7 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+
 
 # ==== Ограничение доступа по IP ====
 @app.before_request
@@ -191,17 +204,18 @@ def limit_remote_addr():
 
 # ==== Получить список доменов из dnsmasq ====
 def get_domains():
+    groups = defaultdict(list)
     try:
-        with open(DNSMASQ_CONF, "r") as f:
-            lines = f.readlines()
-        domains = set()
-        for line in lines:
-            if line.startswith("ipset=/"):
-                dom = line.split("/")[1]
-                domains.add(dom)
-        return sorted(domains)
+        with open(META_FILE, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or "," not in line:
+                    continue
+                domain, tag = line.split(",", 1)
+                groups[tag].append(domain)
     except FileNotFoundError:
-        return []
+        pass
+    return dict(sorted(groups.items()))  # сортировка по тегу
 
 # ==== Получить список IP из ipset ====
 def get_ipset_list():
@@ -249,11 +263,26 @@ def remove_domain():
         return redirect(url_for("index"))
     domain = request.form.get("domain")
     mode = request.form.get("mode", "full")
+
+    # Удаляем через скрипт
     try:
         result = subprocess.check_output([XRAY_REM_SCRIPT, domain, mode], stderr=subprocess.STDOUT, text=True)
     except subprocess.CalledProcessError as e:
         result = e.output
+
+    # Удаляем из META
+    try:
+        with open(META_FILE, "r") as f:
+            lines = f.readlines()
+        with open(META_FILE, "w") as f:
+            for l in lines:
+                if not l.startswith(f"{domain},"):
+                    f.write(l)
+    except FileNotFoundError:
+        pass
+
     return render_template_string(HTML_TEMPLATE, output=result, ipset_list=get_ipset_list(), domains=get_domains())
+
 
 # ==== Проверка IP ====
 @app.route("/check_ip", methods=["POST"])

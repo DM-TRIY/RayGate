@@ -30,8 +30,8 @@ cache-size=0
 no-poll
 no-resolv
 listen-address=127.0.0.1
-port=53
-server=127.0.0.1#40500
+port=5354
+server=127.0.0.1#53
 EOF
 echo "OK!"
 
@@ -60,6 +60,7 @@ IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__IFACE__|$IFACE|g" "$RAYGATE_ADD_PATH"
 sed -i "s|DNSMASQ_SOCK=.*|DNSMASQ_SOCK=/opt/var/run/raygate-dnsmasq.sock|g" "$RAYGATE_ADD_PATH"
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
+sed -i "s|__IFACE__|$IFACE|g" /opt/bin/raygate/raygate_watchdog.sh
 echo "OK!"
 
 # === config.json ===
