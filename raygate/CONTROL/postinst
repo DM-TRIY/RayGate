@@ -19,7 +19,6 @@ echo "OK!"
 
 CONFIG_PATH="/opt/etc/xray/config.json"
 RAYWEB_PATH="/opt/bin/raygate/rayweb/rayweb.py"
-RAYGATE_ADD_PATH="/opt/bin/raygate/raygate_add.sh"
 
 # === Конфиг для отдельного dnsmasq под RayGate ===
 echo -n "[3/10] Creating RayGate dnsmasq config... "
@@ -121,7 +120,8 @@ echo "[8/10] rayweb.py configured!"
 # === Права на исполнение ===
 echo -n "[9/10] Setting permissions... "
 chmod +x "$RAYWEB_PATH"
-chmod +x "$RAYGATE_ADD_PATH"
+chmod +x /opt/bin/raygate/raygate_add.sh
+chmod +x /opt/bin/raygate/raygate_rem.sh
 chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
 
