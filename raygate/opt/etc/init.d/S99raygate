@@ -16,9 +16,9 @@ PID_FILE="/opt/var/run/xray.pid"
 IPSET_FILE="/opt/etc/vpn_domains.ipset"
 
 # веб морда
-WEBVPN_DIR="/opt/webvpn"
-WEBVPN_LOG="$WEBVPN_DIR/webvpn.log"
-WEBVPN_PID_FILE="/opt/var/run/webvpn.pid"
+RAYWEB_DIR="/opt/bin/raygate/rayweb"
+RAYWEB_LOG="$RAYWEB_DIR/rayweb.log"
+RAYWEB_PID_FILE="/opt/var/run/rayweb.pid"
 
 get_uptime() {
     pid="$1"
@@ -59,15 +59,15 @@ get_xray_pid() {
     pgrep -f "$XRAY_BIN run" | head -n 1
 }
 
-start_webvpn() {
+start_rayweb() {
     if pgrep -f "python3 app.py" >/dev/null 2>&1; then
-        echo "[i] WebVPN already running"
+        echo "[i] RayWeb already running."
     else
-        echo "Starting WebVPN..."
-        cd "$WEBVPN_DIR" || exit
-        python3 app.py >> "$WEBVPN_LOG" 2>&1 &
-        echo $! > "$WEBVPN_PID_FILE"
-        echo "✅ WebVPN started with PID $(cat "$WEBVPN_PID_FILE")"
+        echo "Starting RayWeb..."
+        cd "$RAYWEB_DIR" || exit
+        python3 app.py >> "$RAYWEB_LOG" 2>&1 &
+        echo $! > "$RAYWEB_PID_FILE"
+        echo "✅ RayWeb started with PID $(cat "$RAYWEB_PID_FILE")"
     fi
 }
 
@@ -126,7 +126,7 @@ start)
 
     if check_running; then
       echo "✅ Xray started (PID: $(get_xray_pid))"
-      start_webvpn
+      start_rayweb
     else
       echo "❌ Xray failed to start. Last log lines:"
       tail -n 20 "$XRAY_LOG_FILE"
@@ -172,9 +172,9 @@ start)
 
     if pgrep -f "python3 app.py" >/dev/null 2>&1; then
       wpid=$(pgrep -f "python3 app.py" | head -n1)
-      echo "✅ WebVPN is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
+      echo "✅ rayweb is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
     else
-      echo "[i] WebVPN is not running"
+      echo "[i] rayweb is not running"
     fi
     ;;
 
