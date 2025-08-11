@@ -16,18 +16,21 @@ jobs:
 
       - name: Normalize control and postinst
         run: |
-          # Убираем BOM из control
+          # Убираем BOM/CRLF
           sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/control
-          # Убираем ведущие пробелы перед ключами
-          sed -i 's/^[[:space:]]*\(Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
-          # Убираем CRLF в postinst
           sed -i 's/\r//g' raygate/CONTROL/control
-          sed -i 's/\r$//' raygate/CONTROL/postinst
+          sed -i '1s/^\xEF\xBB\xBF//' raygate/CONTROL/postinst
+          sed -i 's/\r//g' raygate/CONTROL/postinst
+          # Убираем лидирующие пробелы
+          sed -i 's/^[[:space:]]*\(Package\|Version\|Architecture\|Maintainer\|Section\|Priority\|Depends\|Description\)/\1/' raygate/CONTROL/control
+          # Подставляем точную архитектуру
+          sed -i 's/^Architecture:.*/Architecture: aarch64-3.10/' raygate/CONTROL/control
+          chmod 755 raygate/CONTROL/postinst
 
       - name: Extract version from control
         id: get_version
         run: |
-          VERSION=$(grep -m1 -E '^[[:space:]]*Version:' raygate/CONTROL/control | awk '{print $2}')
+          VERSION=$(grep -m1 -E '^Version:' raygate/CONTROL/control | awk '{print $2}')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Prepare build directories
@@ -39,37 +42,34 @@ jobs:
         run: |
           cp raygate/CONTROL/control build/CONTROL/
           cp raygate/CONTROL/postinst build/CONTROL/
-          chmod 755 build/CONTROL/postinst
           cp -r raygate/opt/* build/data/
 
       - name: Build control.tar.gz and data.tar.gz
         run: |
-          pushd build/CONTROL
-          tar --numeric-owner --group=0 --owner=0 -czf ../control.tar.gz .
-          popd
-          pushd build/data
-          tar --numeric-owner --group=0 --owner=0 -czf ../data.tar.gz .
-          popd
+          GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/CONTROL -czf build/control.tar.gz .
+          GZIP=-n tar --numeric-owner --group=0 --owner=0 -C build/data    -czf build/data.tar.gz .
 
       - name: Create debian-binary
-        run: echo '2.0' > build/debian-binary
+        run: printf '2.0\n' > build/debian-binary
 
-      - name: Assemble .ipk with ar
+      - name: Assemble .ipk (OpenWrt style)
         run: |
-          pushd build
-          ar rcs ../raygate_${VERSION}_all.ipk debian-binary control.tar.gz data.tar.gz
-          popd
+          mkdir pkgroot
+          cp build/debian-binary pkgroot/
+          cp build/control.tar.gz pkgroot/
+          cp build/data.tar.gz pkgroot/
+          GZIP=-n tar -C pkgroot -czf raygate_${VERSION}_aarch64-3.10.ipk .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: raygate_${{ env.VERSION }}_all.ipk
-          path: raygate_${{ env.VERSION }}_all.ipk
+          name: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
+          path: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
 
       - name: Create Release (only on tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: raygate_${{ env.VERSION }}_all.ipk
+          files: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
