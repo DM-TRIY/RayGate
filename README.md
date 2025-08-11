@@ -24,7 +24,7 @@ RayGate — это оснастка VPN для маршрутизаторов с
 
 ```
 mkdir -p /opt/etc/opkg
-echo "src/gz raygate https://dm-triy.github.io/RayGate/all" > /opt/etc/opkg/raygate.conf
+echo "src/gz raygate https://raw.githubusercontent.com/DM-TRIY/RayGate/gh-pages/all/" > /opt/etc/opkg/raygate.conf
 ```
 
 2. Обновите списки пакетов:
