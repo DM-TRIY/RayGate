@@ -56,18 +56,21 @@ jobs:
           cp build/debian-binary pkgroot/
           cp build/control.tar.gz pkgroot/
           cp build/data.tar.gz pkgroot/
-          GZIP=-n tar -C pkgroot -czf raygate_${VERSION}_aarch64-3.10.ipk .
+          GZIP=-n tar -C pkgroot -czf raygate_${VERSION}_all.ipk .
 
-      - name: Upload artifact
+      - name: Copy dev build
+        run: cp raygate_${VERSION}_all.ipk raygate_${VERSION}_dev.ipk
+
+      - name: Upload artifact (dev build)
         uses: actions/upload-artifact@v4
         with:
-          name: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
-          path: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
+          name: raygate_${{ env.VERSION }}_dev.ipk
+          path: raygate_${{ env.VERSION }}_dev.ipk
 
       - name: Create Release (only on tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: raygate_${{ env.VERSION }}_aarch64-3.10.ipk
+          files: raygate_${{ env.VERSION }}_all.ipk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

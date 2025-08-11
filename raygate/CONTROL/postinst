@@ -39,7 +39,7 @@ PORT=$(echo "$VLESS" | sed -n 's#.*:\([0-9]*\)?.*#\1#p')
 UUID=$(echo "$VLESS" | sed -n 's#vless://\([^@]*\)@.*#\1#p')
 SNI=$(echo "$VLESS" | tr '&' '\n' | grep '^sni=' | cut -d= -f2)
 PUBKEY=$(echo "$VLESS" | tr '&' '\n' | grep '^pbk=' | cut -d= -f2)
-SHORTID=$(echo "$VLESS" | tr '&' '\n' | grep '^sid=' | cut -d= -f2)
+SHORTID=$(echo "$VLESS" | tr '&' '\n' | grep '^sid=' | cut -d= -f2 | cut -d'#' -f1)
 
 # Экранируем &, | и /
 esc() { echo "$1" | sed 's/[&|/]/\\&/g'; }
