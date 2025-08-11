@@ -12,8 +12,12 @@ if pgrep -f "/opt/sbin/xray run" >/dev/null 2>&1; then
 fi
 
 if pgrep -f "rayweb.py" >/dev/null 2>&1; then
-    echo "[RayGate] Killing RayWeb..."
-    pkill -9 -f "rayweb.py"
+    for pid in $(pgrep -f "rayweb.py"); do
+        kill "$pid" 2>/dev/null
+    done
+    echo "[RayGate] RayWeb killed."
+else
+    echo "[RayGate] RayWeb not running."
 fi
 
 rm -f /opt/etc/rc.d/S99raygate
