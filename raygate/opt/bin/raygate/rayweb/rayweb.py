@@ -52,6 +52,8 @@ def get_ipset_list():
         return subprocess.check_output(IPSET_LIST_CMD, stderr=subprocess.STDOUT, text=True)
     except subprocess.CalledProcessError as e:
         return e.output
+    except FileNotFoundError:
+        return ""
 
 # ==== Главная ====
 @app.route("/", methods=["GET"])
