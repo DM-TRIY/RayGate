@@ -66,18 +66,19 @@ warmup_ipset() {
     SET_NAME="vpn_domains"
 
     [ -f "$CONF_FILE" ] || { 
-        echo "[RayGate] No $CONF_FILE found, skipping warmup."; 
+        echo "[RayGate] No $CONF_FILE found, skipping warmup."
         return
     }
 
     echo "[RayGate] Warming up IPSet..."
+
+    # Выдёргиваем все домены, убираем ведущую точку, дубликаты и пустые
     grep -oP '(?<=ipset=/)[^/]+(?=/vpn_domains)' "$CONF_FILE" \
         | sed 's/^\.//' \
         | sort -u \
         | grep -v '^$' \
-        | while read -r domain; do
-            echo "  Resolving $domain..."
-            for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$domain" A +short +time=1 +tries=1); do
+        | while read -r dom; do
+            for ip in $(dig @"$DNS_SERVER" -p "$DNS_PORT" "$dom" A +short +time=1 +tries=1); do
                 [ -n "$ip" ] && ipset add "$SET_NAME" "$ip" 2>/dev/null || true
             done
         done
@@ -85,7 +86,6 @@ warmup_ipset() {
     ipset save "$SET_NAME" > /opt/etc/vpn_domains.ipset
     echo "[RayGate] Warmup completed."
 }
-
 
 start_rayweb() {
     if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
