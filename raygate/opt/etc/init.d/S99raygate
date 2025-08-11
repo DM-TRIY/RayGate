@@ -60,14 +60,19 @@ get_xray_pid() {
 }
 
 start_rayweb() {
-    if pgrep -f "python3 app.py" >/dev/null 2>&1; then
+    if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
         echo "[i] RayWeb already running."
     else
         echo "Starting RayWeb..."
         cd "$RAYWEB_DIR" || exit
-        python3 app.py >> "$RAYWEB_LOG" 2>&1 &
+        python3 "$RAYWEB_DIR/rayweb.py" >> "$RAYWEB_LOG" 2>&1 &
         echo $! > "$RAYWEB_PID_FILE"
-        echo "✅ RayWeb started with PID $(cat "$RAYWEB_PID_FILE")"
+        sleep 1
+        if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
+            echo "✅ RayWeb started with PID $(cat "$RAYWEB_PID_FILE")"
+        else
+            echo "❌ Failed to start RayWeb. Check $RAYWEB_LOG for details."
+        fi
     fi
 }
 
@@ -89,17 +94,15 @@ start)
     if [ -f "$PID_FILE" ] && ! ps -p "$(cat "$PID_FILE")" >/dev/null 2>&1; then
       rm -f "$PID_FILE"
     fi
-    
-    echo "Creating ipset backup..."
-    if ipset list vpn_domains >/dev/null 2>&1; then
-        ipset save vpn_domains > /opt/etc/vpn_domains.ipset.backup
-    fi
 
-    echo "Restoring ipset vpn_domains from $IPSET_FILE..."
     if [ -s "$IPSET_FILE" ]; then
+        echo "Restoring ipset vpn_domains from $IPSET_FILE..."
         ipset restore < "$IPSET_FILE"
     elif [ -s "/opt/etc/vpn_domains.ipset.backup" ]; then
+        echo "Restoring ipset vpn_domains from backup..."
         ipset restore < /opt/etc/vpn_domains.ipset.backup
+    else
+        echo "[i] No ipset file or backup found. Skipping restore."
     fi
 
     if ! iptables -t nat -C PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
