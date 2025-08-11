@@ -86,6 +86,7 @@ echo "OK!"
 
 # === Автозапуск и старт ===
 echo -e "[7/7] Starting RayGate...\n"
+rm -f /opt/etc/rc.d/S99raygate
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
 echo "[7/7] RayGate started!"
