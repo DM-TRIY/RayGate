@@ -61,7 +61,7 @@ get_xray_pid() {
 
 start_rayweb() {
     if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
-        echo "[i] RayWeb already running."
+        echo "⚠️ RayWeb already running."
     else
         echo "Starting RayWeb..."
         cd "$RAYWEB_DIR" || exit
@@ -102,7 +102,7 @@ start)
         echo "Restoring ipset vpn_domains from backup..."
         ipset restore < /opt/etc/vpn_domains.ipset.backup
     else
-        echo "[i] No ipset file or backup found. Skipping restore."
+        echo "⚠️ No ipset file or backup found. Skipping restore."
     fi
 
     if ! iptables -t nat -C PREROUTING -i br0 -p tcp -m set --match-set vpn_domains dst --dport 443 \
@@ -111,7 +111,7 @@ start)
         -j REDIRECT --to-ports 12345
         echo "✅ iptables rule added"
     else
-        echo "[i] iptables rule already exists"
+        echo "⚠️ iptables rule already exists"
     fi
 
     if [ ! -x "$XRAY_BIN" ]; then
@@ -161,7 +161,7 @@ start)
       rm -f "$XRAY_LOG_FILE"
       echo "✅ Xray stopped"
     else
-      echo "[i] Xray is not running"
+      echo "⚠️ Xray is not running"
     fi
     sleep 1
     ;;
@@ -177,16 +177,15 @@ start)
       pid=$(get_xray_pid)
       echo "✅ Xray is running (PID: $pid, Uptime: $(get_uptime "$pid"))"
     else
-      echo "[i] Xray is not running"
+      echo "⚠️ Xray is not running"
     fi
 
-    if pgrep -f "python3 rayweb.py" >/dev/null 2>&1; then
-      wpid=$(pgrep -f "python3 rayweb.py" | head -n1)
-      echo "✅ rayweb is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
+    if pgrep -f "rayweb.py" >/dev/null 2>&1; then
+        wpid=$(pgrep -f "rayweb.py" | head -n1)
+        echo "✅ rayweb is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
     else
-      echo "[i] rayweb is not running"
+        echo "⚠️ rayweb is not running"
     fi
-    ;;
 
   *)
     echo "Usage: $0 {start|stop|restart|status}"
