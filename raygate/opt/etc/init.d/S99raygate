@@ -118,9 +118,15 @@ start)
 
     if [ -s "$IPSET_FILE" ]; then
         echo "Restoring ipset vpn_domains from $IPSET_FILE..."
+
         if ipset list vpn_domains >/dev/null 2>&1; then
-            ipset destroy vpn_domains
+            echo "[RayGate] Removing iptables rules linked to vpn_domains..."
+            iptables -t nat -D PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 -j REDIRECT --to-ports $TUN_PORT 2>/dev/null
+
+            echo "[RayGate] Destroying existing ipset vpn_domains..."
+            ipset destroy vpn_domains 2>/dev/null
         fi
+
         ipset restore < "$IPSET_FILE"
     else
         echo "⚠️ No ipset file found. Skipping restore."
