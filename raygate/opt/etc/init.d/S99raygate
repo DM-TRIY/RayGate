@@ -118,12 +118,12 @@ start)
 
     if [ -s "$IPSET_FILE" ]; then
         echo "Restoring ipset vpn_domains from $IPSET_FILE..."
+        if ipset list vpn_domains >/dev/null 2>&1; then
+            ipset destroy vpn_domains
+        fi
         ipset restore < "$IPSET_FILE"
-    elif [ -s "/opt/etc/vpn_domains.ipset.backup" ]; then
-        echo "Restoring ipset vpn_domains from backup..."
-        ipset restore < /opt/etc/vpn_domains.ipset.backup
     else
-        echo "⚠️ No ipset file or backup found. Skipping restore."
+        echo "⚠️ No ipset file found. Skipping restore."
     fi
 
     if ! iptables -t nat -C PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \

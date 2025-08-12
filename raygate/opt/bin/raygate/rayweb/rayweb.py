@@ -53,6 +53,18 @@ def get_ipset_list():
         return e.output
     except FileNotFoundError:
         return ""
+    
+def ip_to_flag(ip):
+    try:
+        country_code = subprocess.check_output(
+            ["curl", "-s", f"https://ipapi.co/{ip}/country/"],
+            text=True, timeout=2
+        ).strip()
+        if len(country_code) == 2:
+            return chr(ord(country_code[0].upper()) + 127397) + chr(ord(country_code[1].upper()) + 127397)
+    except Exception:
+        pass
+    return ""
 
 # ==== Главная ====
 @app.route("/", methods=["GET"])
@@ -163,6 +175,7 @@ def remove_domain():
 
 
 # ==== Проверка IP ====
+
 @app.route("/check_ip", methods=["POST"])
 def check_ip():
     if not session.get("logged_in"):
@@ -174,6 +187,7 @@ def check_ip():
         ).strip()
     except subprocess.CalledProcessError:
         vpn_ip = "Error"
+
     try:
         wan_ip = subprocess.check_output(
             ["curl", "-s", "--interface", WAN_INTERFACE, "https://api.ipify.org"],
@@ -181,7 +195,11 @@ def check_ip():
         ).strip()
     except subprocess.CalledProcessError:
         wan_ip = "Error"
-    result = f"VPN IP: {vpn_ip}\nWAN IP: {wan_ip}"
+
+    vpn_flag = ip_to_flag(vpn_ip) if vpn_ip != "Error" else ""
+    wan_flag = ip_to_flag(wan_ip) if wan_ip != "Error" else ""
+
+    result = f"VPN IP: {vpn_ip} {vpn_flag}\nWAN IP: {wan_ip} {wan_flag}"
     return render_template(
         "index.html",
         output=result,
