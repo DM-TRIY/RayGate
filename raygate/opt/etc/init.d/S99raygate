@@ -37,7 +37,7 @@ get_uptime() {
     fi
 }
 
-check_running() {
+check_xray_running() {
     if [ -f "$PID_FILE" ]; then
         pid=$(cat "$PID_FILE")
         if [ -n "$pid" ] && ps -p "$pid" >/dev/null 2>&1; then
@@ -75,6 +75,25 @@ start_rayweb() {
         else
             echo "❌ Failed to start RayWeb. Check $RAYWEB_LOG for details."
         fi
+    fi
+}
+
+start_watchdog() {
+    if pgrep -f "raygate_watchdog" >/dev/null 2>&1; then
+        echo "⚠️ WatchDog is already running."
+        return
+    fi
+
+    echo "👁️ Starting WatchDog..."
+
+    sh /opt/bin/raygate/raygate_watchdog.sh &
+    sleep 1
+
+    if pgrep -f "raygate_watchdog" >/dev/null 2>&1; then
+        echo "✅ WatchDog started successfully."
+    else
+        echo "❌ Failed to start WatchDog."
+        return 1
     fi
 }
 
@@ -136,7 +155,7 @@ start)
 
     sleep 2
 
-    if check_running; then
+    if check_xray_running; then
       echo "✅ Xray started (PID: $(get_xray_pid))"
       start_rayweb
     else
@@ -145,11 +164,12 @@ start)
       rm -f "$PID_FILE"
       exit 1
     fi
+    start_watchdog
     ;;
 
   stop)
     echo "Stopping Xray..."
-    if check_running; then
+    if check_xray_running; then
       echo "Killing all XRAY processes..."
       for pid in $(pgrep -f "$XRAY_BIN run"); do
         kill "$pid" 2>/dev/null
@@ -175,7 +195,7 @@ start)
     ;;
 
   status)
-    if check_running; then
+    if check_xray_running; then
       pid=$(get_xray_pid)
       echo "✅ Xray is running (PID: $pid, Uptime: $(get_uptime "$pid"))"
     else
