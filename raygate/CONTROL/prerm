@@ -20,16 +20,6 @@ else
     echo "[RayGate] RayWeb not running."
 fi
 
-if pgrep -f "raygate_watchdog" >/dev/null 2>&1; then
-    echo "[RayGate] Stopping WatchDog..."
-    for pid in $(pgrep -f "raygate_watchdog"); do
-        kill "$pid" 2>/dev/null
-    done
-    echo "[RayGate] WatchDog stopped."
-else
-    echo "[RayGate] WatchDog is not running."
-fi
-
 echo "[RayGate] Clearing opkg cache..."
 rm -rf /opt/var/opkg-lists/*
 

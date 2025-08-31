@@ -63,92 +63,74 @@ get_xray_pid() {
 
 start_rayweb() {
     if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
-        echo "⚠️ RayWeb already running."
+        echo "[RAYGATE] RayWeb already running. ⚠️"
     else
-        echo "Starting RayWeb..."
+        echo "[RAYGATE] Starting RayWeb..."
         cd "$RAYWEB_DIR" || exit
         python3 "$RAYWEB_DIR/rayweb.py" >> "$RAYWEB_LOG" 2>&1 &
         echo $! > "$RAYWEB_PID_FILE"
         sleep 1
         if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
-            echo "✅ RayWeb started with PID $(cat "$RAYWEB_PID_FILE")"
+            echo "[RAYGATE] RayWeb started with PID $(cat "$RAYWEB_PID_FILE") ✅"
         else
-            echo "❌ Failed to start RayWeb. Check $RAYWEB_LOG for details."
+            echo "[RAYGATE] Failed to start RayWeb. Check $RAYWEB_LOG for details. ❌"
         fi
-    fi
-}
-
-start_watchdog() {
-    if pgrep -f "raygate_watchdog" >/dev/null 2>&1; then
-        echo "⚠️ WatchDog is already running."
-        return
-    fi
-
-    echo "👁️ Starting WatchDog..."
-
-    sh /opt/bin/raygate/raygate_watchdog.sh &
-    sleep 1
-
-    if pgrep -f "raygate_watchdog" >/dev/null 2>&1; then
-        echo "✅ WatchDog started successfully."
-    else
-        echo "❌ Failed to start WatchDog."
-        return 1
     fi
 }
 
 case "$1" in
 
 enable)
-    echo "Enabling RayGate to autostart..."
+    echo "[RAYGATE] Enabling RayGate to autostart..."
     ln -s "$0" /opt/etc/rc.d/S99raygate 
     ;;
 
 disable)
-    echo "Disabling RayGate from autostart..."
+    echo "[RAYGATE] Disabling RayGate from autostart..."
     rm -f /opt/etc/rc.d/S99raygate
     ;;
 
 start)
-    echo "Starting Xray..."
+    echo "[RAYGATE] Starting Xray..."
 
     if [ -f "$PID_FILE" ] && ! ps -p "$(cat "$PID_FILE")" >/dev/null 2>&1; then
       rm -f "$PID_FILE"
     fi
 
     if [ -s "$IPSET_FILE" ]; then
-        echo "Restoring ipset vpn_domains from $IPSET_FILE..."
+        echo "[RAYGATE] Restoring ipset vpn_domains from $IPSET_FILE..."
 
         if ipset list vpn_domains >/dev/null 2>&1; then
-            echo "[RayGate] Removing iptables rules linked to vpn_domains..."
+            echo "[RAYGATE] Removing iptables rules linked to vpn_domains..."
             iptables -t nat -D PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null
 
-            echo "[RayGate] Destroying existing ipset vpn_domains..."
+            echo "[RAYGATE] Destroying existing ipset vpn_domains..."
             ipset destroy vpn_domains 2>/dev/null
         fi
 
         ipset restore < "$IPSET_FILE"
     else
-        echo "⚠️ No ipset file found. Skipping restore."
+        echo "[RAYGATE] No ipset file found. Skipping restore. ⚠️"
     fi
 
     if ! iptables -t nat -C PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
         -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null; then
         iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
             -j REDIRECT --to-ports "$TUN_PORT"
-        echo "✅ iptables rule added (port $TUN_PORT, iface $IFACE)"
+        echo "[RAYGATE] iptables rule added (port $TUN_PORT, iface $IFACE) ✅"
     else
-        echo "⚠️ iptables rule already exists (port $TUN_PORT, iface $IFACE)"
+        echo "[RAYGATE] iptables rule already exists (port $TUN_PORT, iface $IFACE) ⚠️"
     fi
 
     if [ ! -x "$XRAY_BIN" ]; then
-      echo "❌ Xray binary not found at $XRAY_BIN"
+      echo "[RAYGATE] Xray binary not found at $XRAY_BIN ❌"
       exit 1
     fi
 
     $XRAY_BIN run -test -c "$XRAY_CONF" >/tmp/xray_test.log 2>&1
     if [ $? -ne 0 ]; then
-      echo "❌ Config check failed! See /tmp/xray_test.log:"
+      echo "[RAYGATE] Config check failed! ❌"
+      echo "See /tmp/xray_test.log: "
       tail -n 20 /tmp/xray_test.log
       exit 1
     fi
@@ -162,33 +144,33 @@ start)
     sleep 2
 
     if check_xray_running; then
-      echo "✅ Xray started (PID: $(get_xray_pid))"
+      echo "[RAYGATE] Xray started (PID: $(get_xray_pid)) ✅"
       start_rayweb
     else
-      echo "❌ Xray failed to start. Last log lines:"
+      echo "[RAYGATE] Xray failed to start. ❌"
+      echo "Last log lines:"
       tail -n 20 "$XRAY_LOG_FILE"
       rm -f "$PID_FILE"
       exit 1
     fi
-    start_watchdog
     ;;
 
   stop)
-    echo "Stopping Xray..."
+    echo "[RAYGATE] Stopping Xray..."
     if check_xray_running; then
       for pid in $(pgrep -f "$XRAY_BIN run"); do
         kill "$pid" 2>/dev/null
       done
       sleep 1
       if pgrep -f "$XRAY_BIN run" >/dev/null 2>&1; then
-        echo "⚠️ Some XRAY processes still alive, killing forcefully..."
+        echo "[RAYGATE] Some XRAY processes still alive, killing forcefully... ⚠️"
         pkill -9 -f "$XRAY_BIN run"
       fi
       rm -f "$PID_FILE"
       rm -f "$XRAY_LOG_FILE"
-      echo "✅ Xray stopped"
+      echo "[RAYGATE] Xray stopped ✅"
     else
-      echo "⚠️ Xray is not running"
+      echo "[RAYGATE] Xray is not running ⚠️"
     fi
     sleep 1
     ;;
@@ -202,22 +184,22 @@ start)
   status)
     if check_xray_running; then
       pid=$(get_xray_pid)
-      echo "✅ Xray is running (PID: $pid, Uptime: $(get_uptime "$pid"))"
+      echo "[RAYGATE] Xray is running (PID: $pid, Uptime: $(get_uptime "$pid")) ✅"
     else
-      echo "⚠️ Xray is not running"
+      echo "[RAYGATE] Xray is not running ⚠️"
     fi
 
     if pgrep -f "rayweb.py" >/dev/null 2>&1; then
         wpid=$(pgrep -f "rayweb.py" | head -n1)
-        echo "✅ rayweb is running (PID: $wpid, Uptime: $(get_uptime "$wpid"))"
+        echo "[RAYGATE] RayWeb is running (PID: $wpid, Uptime: $(get_uptime "$wpid")) ✅"
     else
-        echo "⚠️ rayweb is not running"
+        echo "[RAYGATE] RayWeb is not running ⚠️"
     fi
 
     ;;
 
   *)
-    echo "Usage: $0 {start|stop|restart|status}"
+    echo "[RAYGATE] Usage: $0 {start|stop|restart|status}"
     exit 1
     ;;
 esac
