@@ -67,7 +67,7 @@ fi
 echo -n "[6/10] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
-sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook
+sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 echo "OK!"
 
 # === config.json ===
@@ -122,13 +122,13 @@ echo -n "[9/10] Setting permissions... "
 chmod +x "$RAYWEB_PATH"
 chmod +x /opt/bin/raygate/raygate_add.sh
 chmod +x /opt/bin/raygate/raygate_rem.sh
-chmod +x /opt/etc/ndm/netfilter.d/50-raygate-hook
+chmod +x /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
 
 # === Автозапуск и старт ===
 echo -e "[10/10] Starting RayGate...\n"
-/opt/etc/ndm/netfilter.d/50-raygate-hook
+/opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 rm -f /opt/etc/rc.d/S99raygate
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
