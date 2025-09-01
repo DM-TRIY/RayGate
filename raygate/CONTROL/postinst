@@ -48,6 +48,18 @@ echo -n "[4/10] Stopping old RayGate dnsmasq if running... "
 pgrep -f "dnsmasq.*dnsmasq.raygate.conf" | xargs -r kill 2>/dev/null
 echo "OK!"
 
+if [ -f /opt/etc/vpn_domains.meta ]; then
+  echo -n "[4b/10] Restoring saved domains into dnsmasq... "
+  while IFS=, read -r domain tag; do
+    [ -z "$domain" ] && continue
+    ENTRY1="ipset=/$domain/vpn_domains"
+    ENTRY2="server=/$domain/127.0.0.1#$DNS_SYS_PORT"
+    grep -qxF "$ENTRY1" /opt/etc/dnsmasq.raygate.conf || echo "$ENTRY1" >> /opt/etc/dnsmasq.raygate.conf
+    grep -qxF "$ENTRY2" /opt/etc/dnsmasq.raygate.conf || echo "$ENTRY2" >> /opt/etc/dnsmasq.raygate.conf
+  done < /opt/etc/vpn_domains.meta
+  echo "OK!"
+fi
+
 # === Запускаем новый dnsmasq на кастомном порту ===
 echo -n "[5/10] Starting dedicated RayGate dnsmasq... "
 dnsmasq \
@@ -67,6 +79,8 @@ echo -n "[6/10] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" /opt/bin/raygate/raygate_add.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" /opt/bin/raygate/raygate_rem.sh
 echo "OK!"
 
 # === config.json ===

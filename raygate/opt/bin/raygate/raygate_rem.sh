@@ -4,7 +4,6 @@ TARGET="$1"
 CONF="/opt/etc/dnsmasq.raygate.conf"
 SET4="vpn_domains"
 META_FILE="/opt/etc/vpn_domains.meta"
-DNS_PORT=5354 #У НАС СВОЙ DNSMASQ!!!
 
 if [ -z "$TARGET" ]; then
   echo "Usage: $0 <domain>|group:<tag>"
@@ -38,19 +37,19 @@ fi
 DOMAIN="$TARGET"
 
 # === Удаление одного домена ===
-
-# Удаляем из dnsmasq.conf
+# Убираем строки из dnsmasq.raygate.conf
 sed -i "\\|ipset=/$DOMAIN/$SET4|d" "$CONF"
+sed -i "\\|server=/$DOMAIN/127.0.0.1#53|d" "$CONF"
 
-# Удаляем IP из ipset (по резолву)
+# Удаляем все IP этого домена из ipset (если остались)
 REMOVED=0
-for ip in $(dig +tcp @"127.0.0.1" -p "$DNS_PORT" "$DOMAIN" A +short); do
+for ip in $(ipset list "$SET4" 2>/dev/null | awk '/^[0-9]+\./ {print $1}'); do
   if ipset del "$SET4" "$ip" 2>/dev/null; then
     REMOVED=$((REMOVED+1))
   fi
 done
 
-# Обновляем META-файл
+# META-файл
 [ -f "$META_FILE" ] && sed -i "\\|^$DOMAIN,|d" "$META_FILE"
 
 # Перечитываем dnsmasq
