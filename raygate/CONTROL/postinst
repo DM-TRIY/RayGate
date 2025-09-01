@@ -44,9 +44,9 @@ server=127.0.0.1#$DNS_SYS_PORT
 EOF
 echo "OK!"
 
-# === Останавливаем предыдущий dnsmasq на сокете, если есть ===
+# === Останавливаем предыдущий dnsmasq, если есть ===
 echo -n "[4/10] Stopping old RayGate dnsmasq if running... "
-pgrep -f "dnsmasq.*raygate-dnsmasq.sock" | xargs -r kill
+pgrep -f "dnsmasq.*dnsmasq.raygate.conf" | xargs -r kill 2>/dev/null
 echo "OK!"
 
 # === Запускаем новый dnsmasq на кастомном порту ===
@@ -128,7 +128,6 @@ echo "OK!"
 
 # === Автозапуск и старт ===
 echo -e "[10/10] Starting RayGate...\n"
-/opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 rm -f /opt/etc/rc.d/S99raygate
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
