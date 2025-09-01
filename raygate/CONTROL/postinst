@@ -17,7 +17,7 @@ mkdir -p /opt/var/log/xray
 echo "OK!"
 
 CONFIG_PATH="/opt/etc/xray/config.json"
-RAYGATE_PATH="/opt/bin/raygate/"
+RAYGATE_PATH="/opt/bin/raygate"
 RAYWEB_PATH="$RAYGATE_PATHrayweb/rayweb.py"
 
 # === Определяем системный DNS порт ===
@@ -32,9 +32,9 @@ echo -n "[4/9] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
-sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_add.sh
-sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_rem.sh
-sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_sync.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_add.sh"
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_rem.sh"
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_sync.sh"
 echo "OK!"
 
 # === config.json ===
@@ -87,9 +87,9 @@ echo "[6/9] rayweb.py configured!"
 # === Права на исполнение ===
 echo -n "[7/9] Setting permissions... "
 chmod +x "$RAYWEB_PATH"
-chmod +x $RAYGATE_PATHraygate_add.sh
-chmod +x $RAYGATE_PATHraygate_rem.sh
-chmod +x $RAYGATE_PATHraygate_sync.sh
+chmod +x "${RAYGATE_PATH}/raygate_add.sh"
+chmod +x "${RAYGATE_PATH}/raygate_rem.sh"
+chmod +x "${RAYGATE_PATH}/raygate_sync.sh"
 chmod +x /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
