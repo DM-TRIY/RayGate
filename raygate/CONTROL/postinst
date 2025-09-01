@@ -3,13 +3,15 @@ set -e
 
 echo "=== RayGate Post-install script ==="
 
-# === Python-зависимости ===
-echo -n "[1/10] Installing Python packages... "
+# === Зависимости ===
+echo -n "[1/9] Installing dependencies... "
+opkg update >/dev/null 2>&1
+opkg install cron >/dev/null 2>&1
 pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1
 echo "OK!"
 
 # === Проверка директорий ===
-echo -n "[2/10] Checking directories... "
+echo -n "[2/9] Checking directories... "
 mkdir -p /opt/var/run
 mkdir -p /opt/etc/rc.d
 mkdir -p /opt/etc/xray
@@ -17,75 +19,29 @@ mkdir -p /opt/var/log/xray
 echo "OK!"
 
 CONFIG_PATH="/opt/etc/xray/config.json"
-RAYWEB_PATH="/opt/bin/raygate/rayweb/rayweb.py"
+RAYGATE_PATH="/opt/bin/raygate/"
+RAYWEB_PATH="$RAYGATE_PATHrayweb/rayweb.py"
 
-# === Конфиг для отдельного dnsmasq под RayGate ===
-echo -n "[3/10] Creating RayGate dnsmasq config... "
-
-# Detect port of the system DNS resolver (default 53). We try common
-# locations for dnsmasq configuration and fall back to the standard port
-# if it is not explicitly defined. This avoids hardcoding port 53 so the
-# script can work on systems where the resolver listens on a different
-# port.
+# === Определяем системный DNS порт ===
+echo -n "[3/9] Detecting system DNS port... "
 DNS_SYS_PORT=$(grep -m1 '^port=' /opt/etc/dnsmasq.conf 2>/dev/null | cut -d= -f2)
 [ -n "$DNS_SYS_PORT" ] || DNS_SYS_PORT=$(grep -m1 '^port=' /etc/dnsmasq.conf 2>/dev/null | cut -d= -f2)
 [ -n "$DNS_SYS_PORT" ] || DNS_SYS_PORT=53
-
-cat > /opt/etc/dnsmasq.raygate.conf <<EOF
-domain-needed
-bogus-priv
-cache-size=0
-no-poll
-no-resolv
-listen-address=127.0.0.1
-port=5354
-server=127.0.0.1#$DNS_SYS_PORT
-EOF
-echo "OK!"
-
-# === Останавливаем предыдущий dnsmasq, если есть ===
-echo -n "[4/10] Stopping old RayGate dnsmasq if running... "
-pgrep -f "dnsmasq.*dnsmasq.raygate.conf" | xargs -r kill 2>/dev/null
-echo "OK!"
-
-if [ -f /opt/etc/vpn_domains.meta ]; then
-  echo -n "[4b/10] Restoring saved domains into dnsmasq... "
-  while IFS=, read -r domain tag; do
-    [ -z "$domain" ] && continue
-    ENTRY1="ipset=/$domain/vpn_domains"
-    ENTRY2="server=/$domain/127.0.0.1#$DNS_SYS_PORT"
-    grep -qxF "$ENTRY1" /opt/etc/dnsmasq.raygate.conf || echo "$ENTRY1" >> /opt/etc/dnsmasq.raygate.conf
-    grep -qxF "$ENTRY2" /opt/etc/dnsmasq.raygate.conf || echo "$ENTRY2" >> /opt/etc/dnsmasq.raygate.conf
-  done < /opt/etc/vpn_domains.meta
-  echo "OK!"
-fi
-
-# === Запускаем новый dnsmasq на кастомном порту ===
-echo -n "[5/10] Starting dedicated RayGate dnsmasq... "
-dnsmasq \
-  --conf-file=/opt/etc/dnsmasq.raygate.conf \
-  --keep-in-foreground \
-  --log-facility=/opt/var/log/raygate-dnsmasq.log &
-sleep 1
-
-if pgrep -f "dnsmasq.*dnsmasq.raygate.conf" >/dev/null; then
-  echo "OK!"
-else
-  echo "FAILED!"
-fi
+echo "$DNS_SYS_PORT"
 
 # === Настройка RayGate скриптов ===
-echo -n "[6/10] Configuring RayGate scripts... "
+echo -n "[4/9] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
 sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
-sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" /opt/bin/raygate/raygate_add.sh
-sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" /opt/bin/raygate/raygate_rem.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_add.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_rem.sh
+sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" $RAYGATE_PATHraygate_sync.sh
 echo "OK!"
 
 # === config.json ===
-echo "[7/10] Writing config..."
-echo "[7/10] Please enter your vless:// link:"
+echo "[5/9] Writing config..."
+echo "[5/9] Please enter your vless:// link:"
 read -r VLESS
 
 ADDRESS=$(echo "$VLESS" | sed -n 's#.*@\([^:]*\):.*#\1#p')
@@ -110,13 +66,13 @@ sed -i "s|__UUID__|$UUID_ESC|g" "$CONFIG_PATH"
 sed -i "s|__SNI__|$SNI_ESC|g" "$CONFIG_PATH"
 sed -i "s|__PUBKEY__|$PUBKEY_ESC|g" "$CONFIG_PATH"
 sed -i "s|__SHORTID__|$SHORTID_ESC|g" "$CONFIG_PATH"
-echo "[7/10] config.json created!"
+echo "[5/9] config.json created!"
 
 # === rayweb.py ===
-echo "[8/10] Configuring web interface..."
-echo -n "[8/10] Please enter USERNAME for rayweb authorization: "
+echo "[6/9] Configuring web interface..."
+echo -n "[6/9] Please enter USERNAME for rayweb authorization: "
 read USERNAME
-echo "[8/10] Please enter PASSWORD for rayweb authorization: "
+echo "[6/9] Please enter PASSWORD for rayweb authorization: "
 read -s PASSWORD
 PASSHASH=$(python3 -c "import bcrypt; print(bcrypt.hashpw('$PASSWORD'.encode(), bcrypt.gensalt()).decode())")
 SECRET=$(head -c 16 /dev/urandom | hexdump -v -e '/1 "%02x"')
@@ -128,23 +84,51 @@ SECRET_ESC=$(esc "$SECRET")
 sed -i "s|__USERNAME__|$USERNAME_ESC|g" "$RAYWEB_PATH"
 sed -i "s|__PASSHASH__|$PASSHASH_ESC|g" "$RAYWEB_PATH"
 sed -i "s|__SECRET__|$SECRET_ESC|g" "$RAYWEB_PATH"
-echo "[8/10] rayweb.py configured!"
+echo "[6/9] rayweb.py configured!"
 
 # === Права на исполнение ===
-echo -n "[9/10] Setting permissions... "
+echo -n "[7/9] Setting permissions... "
 chmod +x "$RAYWEB_PATH"
-chmod +x /opt/bin/raygate/raygate_add.sh
-chmod +x /opt/bin/raygate/raygate_rem.sh
+chmod +x $RAYGATE_PATHraygate_add.sh
+chmod +x $RAYGATE_PATHraygate_rem.sh
+chmod +x $RAYGATE_PATHraygate_sync.sh
 chmod +x /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
 chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
 
+# === Cron для синка ===
+echo -n "[8/9] Installing cron job for sync... "
+mkdir -p /opt/etc/crontabs
+CRON_FILE="/opt/etc/crontabs/root"
+
+# если файла нет — создаём с заголовками
+if [ ! -f "$CRON_FILE" ]; then
+  cat > "$CRON_FILE" <<EOF
+SHELL=/bin/sh
+PATH=/opt/bin:/opt/sbin:/sbin:/bin:/usr/sbin:/usr/bin
+* * * * * $RAYGATE_PATHraygate_sync.sh
+EOF
+else
+  # если задачи ещё нет — дописываем
+  grep -q raygate_sync.sh "$CRON_FILE" 2>/dev/null || \
+    echo "* * * * * $RAYGATE_PATHraygate_sync.sh" >> "$CRON_FILE"
+fi
+
+chown root:root "$CRON_FILE"
+chmod 600 "$CRON_FILE"
+
+killall crond 2>/dev/null
+crond -c /opt/etc/crontabs -L /opt/var/log/cron.log
+
+echo "OK!"
+
+
 # === Автозапуск и старт ===
-echo -e "[10/10] Starting RayGate...\n"
+echo -e "[9/9] Starting RayGate...\n"
 rm -f /opt/etc/rc.d/S99raygate
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
-echo "[10/10] RayGate started!"
+echo "[9/9] RayGate started!"
 
 # === Итог ===
 BR_IP=$(ip -o -4 addr show dev "$IFACE" | awk '{print $4}' | cut -d/ -f1)
