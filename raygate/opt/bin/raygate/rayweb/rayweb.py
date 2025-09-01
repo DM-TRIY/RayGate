@@ -13,10 +13,6 @@ XRAY_SERVICE = "/opt/etc/init.d/S99raygate"
 XRAY_ADD_SCRIPT = "/opt/bin/raygate/raygate_add.sh"
 XRAY_REM_SCRIPT = "/opt/bin/raygate/raygate_rem.sh"
 META_FILE = "/opt/etc/vpn_domains.meta"
-DNSMASQ_CONF = "/opt/etc/dnsmasq.d/90-vpn-domains.conf"
-IPSET_LIST_CMD = ["ipset", "list", "vpn_domains"]
-IPSET_SAVE_CMD = ["ipset", "save", "vpn_domains"]
-IPSET_FILE = "/opt/etc/vpn_domains.ipset"
 WAN_INTERFACE = "eth3"
 
 app = Flask(__name__, static_folder='static')
@@ -30,7 +26,8 @@ def limit_remote_addr():
     if not (ip.is_loopback or ip.is_private):
         abort(403)
 
-# ==== Получить список доменов из dnsmasq ====
+
+# ==== Получить список доменов из META ====
 def get_domains():
     groups = defaultdict(list)
     try:
@@ -45,15 +42,19 @@ def get_domains():
         pass
     return dict(sorted(groups.items()))  # сортировка по тегу
 
+
 # ==== Получить список IP из ipset ====
 def get_ipset_list():
     try:
-        return subprocess.check_output(IPSET_LIST_CMD, stderr=subprocess.STDOUT, text=True)
+        return subprocess.check_output(
+            ["ipset", "list", "vpn_domains"], stderr=subprocess.STDOUT, text=True
+        )
     except subprocess.CalledProcessError as e:
         return e.output
     except FileNotFoundError:
         return ""
-    
+
+
 def ip_to_flag(ip):
     try:
         country_code = subprocess.check_output(
@@ -65,6 +66,7 @@ def ip_to_flag(ip):
     except Exception:
         pass
     return ""
+
 
 # ==== Главная ====
 @app.route("/", methods=["GET"])
@@ -78,6 +80,7 @@ def index():
         grouped_domains=get_domains(),
     )
 
+
 # ==== Логин ====
 @app.route("/login", methods=["POST"])
 def login():
@@ -87,12 +90,15 @@ def login():
         session["logged_in"] = True
     return redirect(url_for("index"))
 
+
 # ==== Логаут ====
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("index"))
 
+
+# ==== Добавление домена ====
 @app.route("/add", methods=["POST"])
 def add_domain():
     if not session.get("logged_in"):
@@ -101,18 +107,13 @@ def add_domain():
     domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
     if not domain_regex.fullmatch(domain):
         result = "Invalid domain"
-        return render_template(
-            "index.html",
-            output=result,
-            ipset_list=get_ipset_list(),
-            grouped_domains=get_domains(),
-        )
-    try:
-        result = subprocess.check_output(
-            [XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
-        )
-    except subprocess.CalledProcessError as e:
-        result = e.output
+    else:
+        try:
+            result = subprocess.check_output(
+                [XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
+            )
+        except subprocess.CalledProcessError as e:
+            result = e.output
     return render_template(
         "index.html",
         output=result,
@@ -120,52 +121,67 @@ def add_domain():
         grouped_domains=get_domains(),
     )
 
+
+# ==== Удаление домена ====
 @app.route("/remove", methods=["POST"])
 def remove_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
     domain = request.form.get("domain", "").strip()
-
     if not domain:
         result = "Domain is required"
     else:
-        # Удаляем через скрипт
-        script_failed = False
         try:
             result = subprocess.check_output(
                 [XRAY_REM_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
             )
         except subprocess.CalledProcessError as e:
             result = e.output
-            script_failed = True
-        except FileNotFoundError:
-            result = ""
-            script_failed = True
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
-        if script_failed:
-            try:
-                with open(DNSMASQ_CONF, "r") as f:
-                    lines = f.readlines()
-                with open(DNSMASQ_CONF, "w") as f:
-                    for line in lines:
-                        if line.strip() != f"ipset={domain}/vpn_domains":
-                            f.write(line)
-                subprocess.run(["sh", "-c", "kill -HUP $(pidof dnsmasq)"], check=True)
-                result = "Domain removed successfully"
-            except Exception:
-                result = "Failed to remove domain"
 
-        # Удаляем из META
+# ==== Удаление IP из ipset ====
+@app.route("/remove_ip", methods=["POST"])
+def remove_ip():
+    if not session.get("logged_in"):
+        return redirect(url_for("index"))
+    ip = request.form.get("ip", "").strip()
+    if not ip:
+        result = "IP is required"
+    else:
         try:
-            with open(META_FILE, "r") as f:
-                lines = f.readlines()
-            with open(META_FILE, "w") as f:
-                for l in lines:
-                    if not l.startswith(f"{domain},"):
-                        f.write(l)
-        except FileNotFoundError:
-            pass
+            subprocess.check_call(["ipset", "del", "vpn_domains", ip])
+            result = f"IP {ip} removed from vpn_domains"
+        except subprocess.CalledProcessError:
+            result = f"Failed to remove IP {ip} (not found?)"
+    return render_template(
+        "index.html",
+        output=result,
+        ipset_list=get_ipset_list(),
+        grouped_domains=get_domains(),
+    )
 
+
+# ==== Удаление группы доменов ====
+@app.route("/remove_group", methods=["POST"])
+def remove_group():
+    if not session.get("logged_in"):
+        return redirect(url_for("index"))
+    tag = request.form.get("tag", "").strip()
+    if not tag:
+        result = "Tag is required"
+    else:
+        try:
+            result = subprocess.check_output(
+                [XRAY_REM_SCRIPT, f"group:{tag}"], stderr=subprocess.STDOUT, text=True
+            )
+        except subprocess.CalledProcessError as e:
+            result = e.output
     return render_template(
         "index.html",
         output=result,
@@ -175,7 +191,6 @@ def remove_domain():
 
 
 # ==== Проверка IP ====
-
 @app.route("/check_ip", methods=["POST"])
 def check_ip():
     if not session.get("logged_in"):
@@ -207,6 +222,7 @@ def check_ip():
         grouped_domains=get_domains(),
     )
 
+
 # ==== Управление XRAY ====
 @app.route("/xray", methods=["POST"])
 def xray_control():
@@ -225,6 +241,7 @@ def xray_control():
         ipset_list=get_ipset_list(),
         grouped_domains=get_domains(),
     )
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9090)

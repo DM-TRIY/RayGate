@@ -15,7 +15,6 @@ XRAY_CONF="/opt/etc/xray/config.json"
 XRAY_LOG_DIR="/opt/var/log/xray"
 XRAY_LOG_FILE="$XRAY_LOG_DIR/xray_output.log"
 PID_FILE="/opt/var/run/xray.pid"
-IPSET_FILE="/opt/etc/vpn_domains.ipset"
 
 # веб морда
 RAYWEB_DIR="/opt/bin/raygate/rayweb"
@@ -97,29 +96,9 @@ start)
       rm -f "$PID_FILE"
     fi
 
-    if [ -s "$IPSET_FILE" ]; then
-        echo "[RAYGATE] Restoring ipset vpn_domains from $IPSET_FILE..."
-
-        if ipset list vpn_domains >/dev/null 2>&1; then
-            echo "[RAYGATE] Removing iptables rules linked to vpn_domains..."
-            iptables -t nat -D PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null
-
-            echo "[RAYGATE] Destroying existing ipset vpn_domains..."
-            ipset destroy vpn_domains 2>/dev/null
-        fi
-
-        ipset restore < "$IPSET_FILE"
-    else
-        echo "[RAYGATE] No ipset file found. Skipping restore. ⚠️"
-    fi
-
-    if ! iptables -t nat -C PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
-        -j REDIRECT --to-ports "$TUN_PORT" 2>/dev/null; then
-        iptables -t nat -A PREROUTING -i "$IFACE" -p tcp -m set --match-set vpn_domains dst --dport 443 \
-            -j REDIRECT --to-ports "$TUN_PORT"
-        echo "[RAYGATE] iptables rule added (port $TUN_PORT, iface $IFACE) ✅"
-    else
-        echo "[RAYGATE] iptables rule already exists (port $TUN_PORT, iface $IFACE) ⚠️"
+    if ! ipset list vpn_domains >/dev/null 2>&1; then
+        ipset create vpn_domains hash:ip timeout 900
+        echo "[RAYGATE] Created ipset vpn_domains (timeout=900)"
     fi
 
     if [ ! -x "$XRAY_BIN" ]; then

@@ -98,6 +98,9 @@
             border-bottom: 1px solid #30363d;
             position: sticky;
             top: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .logout-btn {
             position: fixed;
@@ -151,12 +154,24 @@
             <form method="POST" action="{{ url_for('check_ip') }}">
                 <button type="submit">🌐 Check External IP's</button>
             </form>
+
+            <!-- Remove IP -->
+            <form method="POST" action="{{ url_for('remove_ip') }}">
+                <input type="text" name="ip" placeholder="1.2.3.4" required>
+                <button type="submit" class="btn-red">🗑 Remove IP</button>
+            </form>
         </div>
 
         <h2>📜 Current Domains in VPN</h2>
         <div class="scroll-box">
             {% for tag, dom_list in grouped_domains.items() %}
-                <div class="tag-header">{{ tag }}</div>
+                <div class="tag-header">
+                    {{ tag }}
+                    <form method="POST" action="{{ url_for('remove_group') }}" style="margin:0;">
+                        <input type="hidden" name="tag" value="{{ tag }}">
+                        <button type="submit" class="btn-red">🗑 Remove Group</button>
+                    </form>
+                </div>
                 <table>
                     {% for domain in dom_list %}
                     <tr>
@@ -181,4 +196,3 @@
     </div>
 </body>
 </html>
-
