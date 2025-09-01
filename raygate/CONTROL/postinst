@@ -18,7 +18,7 @@ echo "OK!"
 
 CONFIG_PATH="/opt/etc/xray/config.json"
 RAYGATE_PATH="/opt/bin/raygate"
-RAYWEB_PATH="$RAYGATE_PATHrayweb/rayweb.py"
+RAYWEB_PATH="${RAYGATE_PATH}/rayweb/rayweb.py"
 
 # === Определяем системный DNS порт ===
 echo -n "[3/9] Detecting system DNS port... "
@@ -30,8 +30,8 @@ echo "$DNS_SYS_PORT"
 # === Настройка RayGate скриптов ===
 echo -n "[4/9] Configuring RayGate scripts... "
 IFACE=$(ip -o link show | awk -F': ' '$2 ~ /^br/ {print $2; exit}')
-sed -i "s|__IFACE__|$IFACE|g" /opt/etc/init.d/S99raygate
-sed -i "s|__IFACE__|$IFACE|g" /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
+sed -i "s|__IFACE__|$IFACE|g" "/opt/etc/init.d/S99raygate"
+sed -i "s|__IFACE__|$IFACE|g" "/opt/etc/ndm/netfilter.d/50-raygate-hook.sh"
 sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_add.sh"
 sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_rem.sh"
 sed -i "s|__SYSDNS__|$DNS_SYS_PORT|g" "${RAYGATE_PATH}/raygate_sync.sh"
@@ -90,8 +90,8 @@ chmod +x "$RAYWEB_PATH"
 chmod +x "${RAYGATE_PATH}/raygate_add.sh"
 chmod +x "${RAYGATE_PATH}/raygate_rem.sh"
 chmod +x "${RAYGATE_PATH}/raygate_sync.sh"
-chmod +x /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
-chmod +x /opt/etc/init.d/S99raygate
+chmod +x "/opt/etc/ndm/netfilter.d/50-raygate-hook.sh"
+chmod +x "/opt/etc/init.d/S99raygate"
 echo "OK!"
 
 # === Cron для синка ===
@@ -99,17 +99,15 @@ echo -n "[8/9] Configuring cron for sync... "
 mkdir -p /opt/etc/crontabs
 CRON_FILE="/opt/etc/crontabs/root"
 
-# если файла нет — создаём с заголовками
 if [ ! -f "$CRON_FILE" ]; then
   cat > "$CRON_FILE" <<EOF
 SHELL=/bin/sh
 PATH=/opt/bin:/opt/sbin:/sbin:/bin:/usr/sbin:/usr/bin
-* * * * * $RAYGATE_PATHraygate_sync.sh
+* * * * * ${RAYGATE_PATH}/raygate_sync.sh
 EOF
 else
-  # если задачи ещё нет — дописываем
   grep -q raygate_sync.sh "$CRON_FILE" 2>/dev/null || \
-    echo "* * * * * $RAYGATE_PATHraygate_sync.sh" >> "$CRON_FILE"
+    echo "* * * * * ${RAYGATE_PATH}/raygate_sync.sh" >> "$CRON_FILE"
 fi
 
 chown root:root "$CRON_FILE"
@@ -117,13 +115,11 @@ chmod 600 "$CRON_FILE"
 
 killall crond 2>/dev/null
 crond -c /opt/etc/crontabs -L /opt/var/log/cron.log
-
 echo "OK!"
-
 
 # === Автозапуск и старт ===
 echo -e "[9/9] Starting RayGate...\n"
-rm -f /opt/etc/rc.d/S99raygate
+rm -f "/opt/etc/rc.d/S99raygate"
 /opt/etc/init.d/S99raygate enable
 /opt/etc/init.d/S99raygate start
 echo "[9/9] RayGate started!"
