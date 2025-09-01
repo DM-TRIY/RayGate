@@ -1,12 +1,12 @@
 Package: raygate
-Version: 2.2.5
+Version: 2.2.6
 Depends: xray-core, dnsmasq-full, ipset, iptables, curl, bind-dig, python3, python3-pip
 Section: net
 Architecture: all
 Maintainer: DT
-MD5Sum: 5b50431d07dcecd3e8ce0502c188bcc4
-Size: 9987
-Filename: raygate_2.2.5_all.ipk
+MD5Sum: 5dc5d403bad3652c317d2246448af67c
+Size: 9989
+Filename: raygate_2.2.6_all.ipk
 Description: RayGate is TProxy gateway for Entware.
 Priority: optional
 
