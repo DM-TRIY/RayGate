@@ -5,9 +5,7 @@ echo "=== RayGate Post-install script ==="
 
 # === Зависимости ===
 echo -n "[1/9] Installing dependencies... "
-opkg update >/dev/null
-opkg install cron >/dev/null
-pip3 install --no-cache-dir flask bcrypt >/dev/null
+pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1
 echo "OK!"
 
 # === Проверка директорий ===
@@ -97,7 +95,7 @@ chmod +x /opt/etc/init.d/S99raygate
 echo "OK!"
 
 # === Cron для синка ===
-echo -n "[8/9] Installing cron job for sync... "
+echo -n "[8/9] Configuring cron for sync... "
 mkdir -p /opt/etc/crontabs
 CRON_FILE="/opt/etc/crontabs/root"
 

@@ -23,7 +23,8 @@ _Проект тестировался на роутере Keenetic Peak (aarch6
 
 ### 🔧 Установка
 
-1. Добавьте репозиторий RayGate в opkg:
+
+1.  Добавьте репозиторий RayGate в opkg:
 
 ```
 mkdir -p /opt/etc/opkg
@@ -34,6 +35,12 @@ echo "src/gz raygate https://raw.githubusercontent.com/DM-TRIY/RayGate/gh-pages/
 
 ``` 
 opkg update 
+```
+
+3. Перед установкой **убедитесь**, что у вас установлен cron:
+
+```
+opkg install cron
 ```
 
 3. Установите RayGate:
