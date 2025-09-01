@@ -1,7 +1,7 @@
 #!/bin/sh
 
 TARGET="$1"
-CONF="/opt/etc/dnsmasq.d/90-vpn-domains.conf"
+CONF="/opt/etc/dnsmasq.raygate.conf"
 SET4="vpn_domains"
 META_FILE="/opt/etc/vpn_domains.meta"
 DNS_PORT=5354 #У НАС СВОЙ DNSMASQ!!!

@@ -96,9 +96,16 @@ start)
       rm -f "$PID_FILE"
     fi
 
+    #IPSET
     if ! ipset list vpn_domains >/dev/null 2>&1; then
         ipset create vpn_domains hash:ip timeout 900
         echo "[RAYGATE] Created ipset vpn_domains (timeout=900)"
+    fi
+
+    #IPTABLES
+    if [ -x /opt/etc/ndm/netfilter.d/50-raygate-hook.sh ]; then
+        /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
+        echo "[RAYGATE] Applied iptables rules ✅"
     fi
 
     if [ ! -x "$XRAY_BIN" ]; then

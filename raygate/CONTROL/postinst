@@ -12,7 +12,6 @@ echo "OK!"
 echo -n "[2/10] Checking directories... "
 mkdir -p /opt/var/run
 mkdir -p /opt/etc/rc.d
-mkdir -p /opt/etc/dnsmasq.d
 mkdir -p /opt/etc/xray
 mkdir -p /opt/var/log/xray
 echo "OK!"
