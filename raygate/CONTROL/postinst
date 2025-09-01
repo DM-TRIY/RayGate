@@ -6,7 +6,7 @@ echo "=== RayGate Post-install script ==="
 # === Зависимости ===
 echo -n "[1/9] Installing dependencies... "
 opkg update >/dev/null 2>&1
-opkg install cron >/dev/null 2>&1
+opkg install cron
 pip3 install --no-cache-dir flask bcrypt >/dev/null 2>&1
 echo "OK!"
 
