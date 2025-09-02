@@ -1,8 +1,8 @@
 ﻿Package: raygate
-Version: 2.3.0
+Version: 2.3.5
 Architecture: all
 Maintainer: DT
 Section: net
 Priority: optional
-Depends: xray-core, dnsmasq-full, ipset, iptables, curl, bind-dig, python3, python3-pip
-Description: RayGate is TProxy gateway for Entware.
+Depends: xray-core, ipset, iptables, curl, bind-dig, python3, python3-pip, cron
+Description: RayGate — lightweight TProxy gateway for Entware routers.

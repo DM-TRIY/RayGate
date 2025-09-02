@@ -154,12 +154,6 @@
             <form method="POST" action="{{ url_for('check_ip') }}">
                 <button type="submit">🌐 Check External IP's</button>
             </form>
-
-            <!-- Remove IP -->
-            <form method="POST" action="{{ url_for('remove_ip') }}">
-                <input type="text" name="ip" placeholder="1.2.3.4" required>
-                <button type="submit" class="btn-red">🗑 Remove IP</button>
-            </form>
         </div>
 
         <h2>📜 Current Domains in VPN</h2>
@@ -190,8 +184,17 @@
 
         <h3>📦 Current IPSet</h3>
         <div class="scroll-box">
-            <pre>{{ ipset_list }}</pre>
+            <table id="ipset-table"></table>
         </div>
+
+        <div style="margin-top: 10px;">
+            <form method="POST" action="{{ url_for('remove_ip') }}">
+                <input type="text" name="ip" placeholder="1.2.3.4" required>
+                <button type="submit" class="btn-red">🗑 Remove IP</button>
+            </form>
+        </div>
+
+        <script src="{{ url_for('static', filename='timeout_sync.js') }}"></script>
     {% endif %}
     </div>
 </body>

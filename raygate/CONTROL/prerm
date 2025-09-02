@@ -1,13 +1,13 @@
 #!/bin/sh
 
-echo "[RayGate] Stopping services before removal..."
+echo "[RAYGATE] Stopping services before removal..."
 
 if [ -x /opt/etc/init.d/S99raygate ]; then
     /opt/etc/init.d/S99raygate stop
 fi
 
 if pgrep -f "/opt/sbin/xray run" >/dev/null 2>&1; then
-    echo "[RayGate] Killing remaining Xray processes..."
+    echo "[RAYGATE] Killing remaining Xray processes..."
     pkill -9 -f "/opt/sbin/xray run"
 fi
 
@@ -15,15 +15,19 @@ if pgrep -f "rayweb.py" >/dev/null 2>&1; then
     for pid in $(pgrep -f "rayweb.py"); do
         kill "$pid" 2>/dev/null
     done
-    echo "[RayGate] RayWeb killed."
+    echo "[RAYGATE] RayWeb killed."
 else
-    echo "[RayGate] RayWeb not running."
+    echo "[RAYGATE] RayWeb not running."
 fi
 
-echo "[RayGate] Clearing opkg cache..."
+echo "[RAYGATE] Clearing opkg cache..."
+
+rm -f /opt/tmp/opkg.lock
 rm -rf /opt/var/opkg-lists/*
 
 rm -f /opt/etc/rc.d/S99raygate
+
+echo "[RAYGATE] Deleting logs..."
 
 rm -f /opt/var/run/xray.pid
 rm -f /opt/var/run/rayweb.pid
@@ -32,6 +36,6 @@ rm -f /opt/var/log/xray/xray_output.log
 rm -f /opt/bin/raygate/rayweb/rayweb.log
 rm -f /tmp/xray_test.log
 
-echo "[RayGate] Cleanup before removal done."
+echo "[RAYGATE] Cleanup before removal done."
 
 exit 0

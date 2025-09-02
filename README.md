@@ -37,12 +37,6 @@ echo "src/gz raygate https://raw.githubusercontent.com/DM-TRIY/RayGate/gh-pages/
 opkg update 
 ```
 
-3. Перед установкой **убедитесь**, что у вас установлен cron:
-
-```
-opkg install cron
-```
-
 3. Установите RayGate:
 
 ``` 

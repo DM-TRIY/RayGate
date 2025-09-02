@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, session, abort
+from flask import Flask, request, render_template, redirect, url_for, session, abort, jsonify
 from collections import defaultdict
 import subprocess
 import bcrypt
@@ -40,21 +40,33 @@ def get_domains():
                 groups[tag].append(domain)
     except FileNotFoundError:
         pass
-    return dict(sorted(groups.items()))  # сортировка по тегу
+    return dict(sorted(groups.items()))
 
 
-# ==== Получить список IP из ipset ====
-def get_ipset_list():
+# ==== Парсинг ipset в JSON ====
+def parse_ipset():
+    entries = []
     try:
-        return subprocess.check_output(
+        output = subprocess.check_output(
             ["ipset", "list", "vpn_domains"], stderr=subprocess.STDOUT, text=True
         )
-    except subprocess.CalledProcessError as e:
-        return e.output
-    except FileNotFoundError:
-        return ""
+        for line in output.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[1] == "timeout":
+                entries.append({"ip": parts[0], "timeout": int(parts[2])})
+    except Exception:
+        pass
+    return entries
 
 
+@app.route("/ipset_json")
+def ipset_json():
+    if not session.get("logged_in"):
+        return jsonify({"error": "unauthorized"}), 403
+    return jsonify(parse_ipset())
+
+
+# ==== Флаги для IP ====
 def ip_to_flag(ip):
     try:
         country_code = subprocess.check_output(
@@ -73,10 +85,11 @@ def ip_to_flag(ip):
 def index():
     if not session.get("logged_in"):
         return render_template("index.html")
+
+    msg = session.pop("flash_msg", "")
     return render_template(
         "index.html",
-        output="",
-        ipset_list=get_ipset_list(),
+        output=msg,
         grouped_domains=get_domains(),
     )
 
@@ -106,20 +119,14 @@ def add_domain():
     domain = request.form.get("domain", "").strip()
     domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
     if not domain_regex.fullmatch(domain):
-        result = "Invalid domain"
+        session["flash_msg"] = "Invalid domain"
     else:
         try:
-            result = subprocess.check_output(
-                [XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
-            )
+            result = subprocess.check_output([XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True)
+            session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
-            result = e.output
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+            session["flash_msg"] = e.output
+    return redirect(url_for("index"))
 
 
 # ==== Удаление домена ====
@@ -129,20 +136,14 @@ def remove_domain():
         return redirect(url_for("index"))
     domain = request.form.get("domain", "").strip()
     if not domain:
-        result = "Domain is required"
+        session["flash_msg"] = "Domain is required"
     else:
         try:
-            result = subprocess.check_output(
-                [XRAY_REM_SCRIPT, domain], stderr=subprocess.STDOUT, text=True
-            )
+            result = subprocess.check_output([XRAY_REM_SCRIPT, domain], stderr=subprocess.STDOUT, text=True)
+            session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
-            result = e.output
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+            session["flash_msg"] = e.output
+    return redirect(url_for("index"))
 
 
 # ==== Удаление IP из ipset ====
@@ -152,19 +153,14 @@ def remove_ip():
         return redirect(url_for("index"))
     ip = request.form.get("ip", "").strip()
     if not ip:
-        result = "IP is required"
+        session["flash_msg"] = "IP is required"
     else:
         try:
             subprocess.check_call(["ipset", "del", "vpn_domains", ip])
-            result = f"IP {ip} removed from vpn_domains"
+            session["flash_msg"] = f"IP {ip} removed from vpn_domains"
         except subprocess.CalledProcessError:
-            result = f"Failed to remove IP {ip} (not found?)"
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+            session["flash_msg"] = f"Failed to remove IP {ip} (not found?)"
+    return redirect(url_for("index"))
 
 
 # ==== Удаление группы доменов ====
@@ -174,20 +170,14 @@ def remove_group():
         return redirect(url_for("index"))
     tag = request.form.get("tag", "").strip()
     if not tag:
-        result = "Tag is required"
+        session["flash_msg"] = "Tag is required"
     else:
         try:
-            result = subprocess.check_output(
-                [XRAY_REM_SCRIPT, f"group:{tag}"], stderr=subprocess.STDOUT, text=True
-            )
+            result = subprocess.check_output([XRAY_REM_SCRIPT, f"group:{tag}"], stderr=subprocess.STDOUT, text=True)
+            session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
-            result = e.output
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+            session["flash_msg"] = e.output
+    return redirect(url_for("index"))
 
 
 # ==== Проверка IP ====
@@ -214,13 +204,8 @@ def check_ip():
     vpn_flag = ip_to_flag(vpn_ip) if vpn_ip != "Error" else ""
     wan_flag = ip_to_flag(wan_ip) if wan_ip != "Error" else ""
 
-    result = f"VPN IP: {vpn_ip} {vpn_flag}\nWAN IP: {wan_ip} {wan_flag}"
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+    session["flash_msg"] = f"VPN IP: {vpn_ip} {vpn_flag}\nWAN IP: {wan_ip} {wan_flag}"
+    return redirect(url_for("index"))
 
 
 # ==== Управление XRAY ====
@@ -233,14 +218,10 @@ def xray_control():
         return redirect(url_for("index"))
     try:
         result = subprocess.check_output([XRAY_SERVICE, action], stderr=subprocess.STDOUT, text=True)
+        session["flash_msg"] = result
     except subprocess.CalledProcessError as e:
-        result = e.output
-    return render_template(
-        "index.html",
-        output=result,
-        ipset_list=get_ipset_list(),
-        grouped_domains=get_domains(),
-    )
+        session["flash_msg"] = e.output
+    return redirect(url_for("index"))
 
 
 if __name__ == "__main__":

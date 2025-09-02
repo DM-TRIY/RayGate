@@ -82,11 +82,13 @@ case "$1" in
 enable)
     echo "[RAYGATE] Enabling RayGate to autostart..."
     ln -s "$0" /opt/etc/rc.d/S99raygate 
+    ln -s /opt/etc/init.d/S10cron /opt/etc/rc.d/S10cron
     ;;
 
 disable)
     echo "[RAYGATE] Disabling RayGate from autostart..."
     rm -f /opt/etc/rc.d/S99raygate
+    rm -f /opt/etc/rc.d/S10cron
     ;;
 
 start)
@@ -98,8 +100,8 @@ start)
 
     #IPSET
     if ! ipset list vpn_domains >/dev/null 2>&1; then
-        ipset create vpn_domains hash:ip timeout 900
-        echo "[RAYGATE] Created ipset vpn_domains (timeout=900)"
+        ipset create vpn_domains hash:ip timeout 300
+        echo "[RAYGATE] Created ipset vpn_domains (timeout=300)"
     fi
 
     #IPTABLES
@@ -107,6 +109,9 @@ start)
         /opt/etc/ndm/netfilter.d/50-raygate-hook.sh
         echo "[RAYGATE] Applied iptables rules ✅"
     fi
+
+    echo "[RAYGATE] Syncing..."
+    /opt/bin/raygate/raygate_sync.sh >/dev/null 2>&1 &
 
     if [ ! -x "$XRAY_BIN" ]; then
       echo "[RAYGATE] Xray binary not found at $XRAY_BIN ❌"
