@@ -97,10 +97,25 @@ start)
       rm -f "$PID_FILE"
     fi
 
-    #IPSET
-    if ! ipset list vpn_domains >/dev/null 2>&1; then
+    echo "[RAYGATE] Configuring ipset..."
+    if ipset list vpn_domains >/dev/null 2>&1; then
+        if ! ipset list vpn_domains | grep -q "timeout"; then
+            echo "[RAYGATE] Ipset vpn_domains exists but without timeout — recreating... ⚠️"
+
+            iptables-save | grep vpn_domains > /tmp/raygate_rules.txt
+            while read -r rule; do
+                [ -n "$rule" ] && iptables -D ${rule#*-A }
+            done < /tmp/raygate_rules.txt
+            rm -f /tmp/raygate_rules.txt
+
+            ipset destroy vpn_domains
+            ipset create vpn_domains hash:ip timeout 300
+
+            echo "[RAYGATE] vpn_domains recreated with timeout=300 ✅"
+        fi
+    else
         ipset create vpn_domains hash:ip timeout 300
-        echo "[RAYGATE] Created ipset vpn_domains (timeout=300)"
+        echo "[RAYGATE] vpn_domains created with timeout=300 ✅"
     fi
 
     #IPTABLES
