@@ -102,11 +102,13 @@ start)
         if ! ipset list vpn_domains | grep -q "timeout"; then
             echo "[RAYGATE] Ipset vpn_domains exists but without timeout — recreating... ⚠️"
 
-            iptables-save | grep vpn_domains > /tmp/raygate_rules.txt
-            while read -r rule; do
-                [ -n "$rule" ] && iptables -D ${rule#*-A }
-            done < /tmp/raygate_rules.txt
-            rm -f /tmp/raygate_rules.txt
+            for table in nat mangle filter; do
+                iptables-save -t $table | grep vpn_domains > /tmp/raygate_rules_$table.txt
+                while read -r rule; do
+                    [ -n "$rule" ] && iptables -t $table -D ${rule#*-A } || true
+                done < /tmp/raygate_rules_$table.txt
+                rm -f /tmp/raygate_rules_$table.txt
+            done
 
             ipset destroy vpn_domains
             ipset create vpn_domains hash:ip timeout 300
