@@ -92,7 +92,6 @@ chmod +x "${RAYGATE_PATH}/raygate_rem.sh"
 chmod +x "${RAYGATE_PATH}/raygate_sync.sh"
 chmod +x "/opt/etc/ndm/netfilter.d/50-raygate-hook.sh"
 chmod +x "/opt/etc/init.d/S99raygate"
-chmod +x "/opt/etc/init.d/S10raygate"
 echo "OK!"
 
 # === Cron для синка ===
