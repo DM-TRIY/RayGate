@@ -99,6 +99,7 @@ echo -n "[8/9] Configuring cron for sync... "
 mkdir -p /opt/etc/crontabs
 CRON_FILE="/opt/etc/crontabs/root"
 
+# создаём или дополняем crontab
 if [ ! -f "$CRON_FILE" ]; then
   cat > "$CRON_FILE" <<EOF
 SHELL=/bin/sh
@@ -113,8 +114,10 @@ fi
 chown root:root "$CRON_FILE"
 chmod 600 "$CRON_FILE"
 
-killall crond 2>/dev/null
+# перезапуск
+killall crond 2>/dev/null || true
 crond -c /opt/etc/crontabs -L /opt/var/log/cron.log
+
 echo "OK!"
 
 # === Автозапуск и старт ===
