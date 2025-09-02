@@ -1,12 +1,12 @@
 Package: raygate
-Version: 2.4.0
+Version: 2.4.1
 Depends: xray-core, ipset, iptables, curl, bind-dig, python3, python3-pip, cron
 Section: net
 Architecture: all
 Maintainer: DT
-MD5Sum: 9ec7f609f17ab431e0ad5575d6c19ac6
-Size: 10707
-Filename: raygate_2.4.0_all.ipk
+MD5Sum: 7de86d35232bc33770bac17e1f52340e
+Size: 10741
+Filename: raygate_2.4.1_all.ipk
 Description: RayGate — lightweight TProxy gateway for Entware routers.
 Priority: optional
 
