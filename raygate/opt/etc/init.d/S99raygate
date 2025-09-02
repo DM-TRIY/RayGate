@@ -70,7 +70,7 @@ start_rayweb() {
         echo $! > "$RAYWEB_PID_FILE"
         sleep 1
         if pgrep -f "python3 $RAYWEB_DIR/rayweb.py" >/dev/null 2>&1; then
-            echo "[RAYGATE] RayWeb started with PID $(cat "$RAYWEB_PID_FILE") ✅"
+            echo "[RAYGATE] RayWeb started (PID: $(cat "$RAYWEB_PID_FILE")) ✅"
         else
             echo "[RAYGATE] Failed to start RayWeb. Check $RAYWEB_LOG for details. ❌"
         fi

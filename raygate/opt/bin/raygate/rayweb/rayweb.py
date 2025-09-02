@@ -61,8 +61,6 @@ def parse_ipset():
 
 @app.route("/ipset_json")
 def ipset_json():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 403
     return jsonify(parse_ipset())
 
 
