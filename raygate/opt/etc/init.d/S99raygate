@@ -81,14 +81,13 @@ case "$1" in
 
 enable)
     echo "[RAYGATE] Enabling RayGate to autostart..."
-    ln -s "$0" /opt/etc/rc.d/S99raygate 
-    ln -s /opt/etc/init.d/S10cron /opt/etc/rc.d/S10cron
+    [ -L /opt/etc/rc.d/S99raygate ] || ln -s "$0" /opt/etc/rc.d/S99raygate
+    [ -L /opt/etc/rc.d/S10cron ] || ln -s /opt/etc/init.d/S10cron /opt/etc/rc.d/S10cron
     ;;
 
 disable)
     echo "[RAYGATE] Disabling RayGate from autostart..."
     rm -f /opt/etc/rc.d/S99raygate
-    rm -f /opt/etc/rc.d/S10cron
     ;;
 
 start)
