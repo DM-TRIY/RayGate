@@ -22,7 +22,6 @@ fi
 
 echo "[RAYGATE] Clearing opkg cache..."
 
-rm -f /opt/tmp/opkg.lock
 rm -rf /opt/var/opkg-lists/*
 
 rm -f /opt/etc/rc.d/S99raygate
