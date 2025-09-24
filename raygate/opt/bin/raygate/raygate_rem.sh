@@ -41,7 +41,7 @@ DOMAIN="$TARGET"
 # === Удаление одного домена ===
 REMOVED=0
 if ipset list "$SET" >/dev/null 2>&1; then
-  for ip in $(dig +short @"127.0.0.1" -p __SYSDNS__ "$DOMAIN" A); do
+  for ip in $(ipset list "$SET" 2>/dev/null | awk '/^[0-9]+\./ {print $1}'); do
     if ipset del "$SET" "$ip" 2>/dev/null; then
       REMOVED=$((REMOVED+1))
     fi
