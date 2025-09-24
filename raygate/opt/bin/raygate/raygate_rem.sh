@@ -24,7 +24,7 @@ if echo "$TARGET" | grep -q "^group:"; then
     exit 0
   fi
 
-  echo "⚠️ Removing group '$TAG' (domains: $DOMAINS)"
+  echo -e "⚠️ Removing group '$TAG' (domains:\n $DOMAINS)"
   sed -i "\\|,$TAG$|d" "$META_FILE"
   echo "✅ Group '$TAG' removed from META"
 
