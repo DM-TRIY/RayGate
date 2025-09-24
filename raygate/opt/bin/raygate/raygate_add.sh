@@ -28,9 +28,12 @@ done
 
 # Сохраняем в META-файл
 [ ! -f "$META_FILE" ] && touch "$META_FILE"
-if ! grep -q "^$DOMAIN," "$META_FILE"; then
+if grep -q "^$DOMAIN," "$META_FILE"; then
+  echo "ℹ $DOMAIN уже есть в $META_FILE"
+else
   echo "$DOMAIN,$TAG" >> "$META_FILE"
   echo "💾 Added to meta: $DOMAIN ($TAG)"
 fi
 
-echo "✅ Домен $DOMAIN добавлен в VPN (IP добавлено: $ADDED, auto-refresh через cron)"
+# Итог
+echo "✅ Домен $DOMAIN добавлен в VPN (Добавлено IP: $ADDED)"

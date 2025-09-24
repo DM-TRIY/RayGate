@@ -127,7 +127,7 @@ def add_domain():
                 subprocess.check_call(
                     ["sed", "-i", f"s|^{domain},.*|{domain},{tag}|", META_FILE]
                 )
-                session["flash_msg"] = f"✅ Added {domain} to group {tag}"
+                session["flash_msg"] = result.strip() + f"\n➡️ Group set: {tag}"
             else:
                 session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
