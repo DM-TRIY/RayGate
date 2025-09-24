@@ -12,16 +12,9 @@
             padding: 0;
             text-align: center;
         }
-        h2, h3 {
-            color: #58a6ff;
-        }
-        a {
-            color: #f55;
-            text-decoration: none;
-        }
-        .container {
-            padding: 20px;
-        }
+        h2, h3 { color: #58a6ff; }
+        a { color: #f55; text-decoration: none; }
+        .container { padding: 20px; }
         .control-line {
             display: flex;
             justify-content: center;
@@ -29,10 +22,7 @@
             margin-bottom: 25px;
             flex-wrap: wrap;
         }
-        form {
-            display: inline-block;
-            margin: 0;
-        }
+        form { display: inline-block; margin: 0; }
         input[type="text"], input[type="password"], select {
             padding: 6px 10px;
             border: 1px solid #30363d;
@@ -49,15 +39,9 @@
             color: #e6edf3;
             transition: background 0.2s ease;
         }
-        button:hover {
-            background-color: #30363d;
-        }
-        .btn-red {
-            background-color: #da3633;
-        }
-        .btn-red:hover {
-            background-color: #f85149;
-        }
+        button:hover { background-color: #30363d; }
+        .btn-red { background-color: #da3633; }
+        .btn-red:hover { background-color: #f85149; }
         table {
             margin: auto;
             border-collapse: collapse;
@@ -70,9 +54,7 @@
             padding: 8px;
             border-bottom: 1px solid #30363d;
         }
-        tr:hover {
-            background-color: #21262d;
-        }
+        tr:hover { background-color: #21262d; }
         pre {
             text-align: left;
             margin: auto;
@@ -111,11 +93,15 @@
             color: #fff;
             text-decoration: none;
             border-radius: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
             transition: background-color 0.2s ease;
         }
-        .logout-btn:hover {
-            background-color: #f85149;
+        .logout-btn:hover { background-color: #f85149; }
+        .mode-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -144,15 +130,19 @@
                 <button name="action" value="status">ℹ Status</button>
             </form>
 
-            <!-- Add domain with group select -->
+            <!-- Add domain with mode toggle -->
             <form method="POST" action="{{ url_for('add_domain') }}">
-                <input type="text" name="domain" placeholder="example.com" required>
+                <input type="text" name="domain" placeholder="spotify.com" required>
                 <select name="tag">
                     <option value="">[auto]</option>
                     {% for tag, dom_list in grouped_domains.items() %}
                         <option value="{{ tag }}">{{ tag }}</option>
                     {% endfor %}
                 </select>
+                <div class="mode-toggle">
+                    <label><input type="radio" name="mode" value="single" checked> Single</label>
+                    <label><input type="radio" name="mode" value="subdomains"> Subdomains</label>
+                </div>
                 <button type="submit">➕ Add</button>
             </form>
 

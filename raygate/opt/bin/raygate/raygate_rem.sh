@@ -3,6 +3,7 @@
 TARGET="$1"
 SET="vpn_domains"
 META_FILE="/opt/etc/vpn_domains.meta"
+SYNC_SCRIPT="/opt/bin/raygate/raygate_sync.sh"
 
 if [ -z "$TARGET" ]; then
   echo "Usage: $0 <domain>|group:<tag>"
@@ -24,38 +25,34 @@ if echo "$TARGET" | grep -q "^group:"; then
   fi
 
   echo "⚠️ Removing group '$TAG' (domains: $DOMAINS)"
-  TOTAL_REMOVED=0
-  for dom in $DOMAINS; do
-    COUNT=$("$0" "$dom" | grep -oE '[0-9]+$')
-    TOTAL_REMOVED=$((TOTAL_REMOVED+COUNT))
-  done
-
-  # Чистим META-файл от строк с этим тегом
   sed -i "\\|,$TAG$|d" "$META_FILE"
-  echo "✅ Group '$TAG' removed (total IP removed: $TOTAL_REMOVED)"
+  echo "✅ Group '$TAG' removed from META"
+
+  if ipset list "$SET" >/dev/null 2>&1; then
+    ipset flush "$SET"
+    echo "🧹 IPSet '$SET' flushed"
+  fi
+
+  "$SYNC_SCRIPT" && echo "🔄 Sync completed"
   exit 0
 fi
 
-DOMAIN="$TARGET"
-
 # === Удаление одного домена ===
-REMOVED=0
-if ipset list "$SET" >/dev/null 2>&1; then
-  for ip in $(ipset list "$SET" 2>/dev/null | awk '/^[0-9]+\./ {print $1}'); do
-    if ipset del "$SET" "$ip" 2>/dev/null; then
-      REMOVED=$((REMOVED+1))
-    fi
-  done
-fi
-
-# META-файл
+DOMAIN="$TARGET"
 if [ -f "$META_FILE" ]; then
   if grep -q "^$DOMAIN," "$META_FILE"; then
     sed -i "\\|^$DOMAIN,|d" "$META_FILE"
-    echo "❌ Домен $DOMAIN удалён из VPN (IP удалено: $REMOVED)"
+    echo "❌ Domain $DOMAIN removed from META"
   else
-    echo "ℹ Домен $DOMAIN не найден в META (IP удалено: $REMOVED)"
+    echo "ℹ Domain $DOMAIN not found in META"
   fi
 else
-  echo "ℹ META file not found (IP удалено: $REMOVED)"
+  echo "ℹ META file not found"
 fi
+
+if ipset list "$SET" >/dev/null 2>&1; then
+  ipset flush "$SET"
+  echo "🧹 IPSet '$SET' flushed"
+fi
+
+"$SYNC_SCRIPT" && echo "🔄 Sync completed"

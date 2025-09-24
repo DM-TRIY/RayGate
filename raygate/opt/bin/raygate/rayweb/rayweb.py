@@ -115,23 +115,33 @@ def logout():
 def add_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
+
     domain = request.form.get("domain", "").strip()
     tag = request.form.get("tag", "").strip()
+    mode = request.form.get("mode", "single")
+
+    # валидация домена
     domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
     if not domain_regex.fullmatch(domain):
-        session["flash_msg"] = "Invalid domain"
-    else:
-        try:
-            result = subprocess.check_output([XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True)
-            if tag:
-                subprocess.check_call(
-                    ["sed", "-i", f"s|^{domain},.*|{domain},{tag}|", META_FILE]
-                )
-                session["flash_msg"] = result.strip() + f"\n➡️ Group set: {tag}"
-            else:
-                session["flash_msg"] = result
-        except subprocess.CalledProcessError as e:
-            session["flash_msg"] = e.output
+        session["flash_msg"] = "❌ Invalid domain"
+        return redirect(url_for("index"))
+
+    # если тег пустой → ставим [auto]
+    if not tag:
+        tag = "[auto]"
+
+    try:
+        if mode == "subdomains":
+            cmd = [XRAY_ADD_SCRIPT, "--subdomains", domain, tag]
+        else:
+            cmd = [XRAY_ADD_SCRIPT, domain, tag]
+
+        result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
+        session["flash_msg"] = result.strip()
+
+    except subprocess.CalledProcessError as e:
+        session["flash_msg"] = e.output
+
     return redirect(url_for("index"))
 
 
