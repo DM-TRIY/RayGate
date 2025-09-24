@@ -33,7 +33,7 @@
             display: inline-block;
             margin: 0;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], select {
             padding: 6px 10px;
             border: 1px solid #30363d;
             border-radius: 5px;
@@ -144,10 +144,21 @@
                 <button name="action" value="status">ℹ Status</button>
             </form>
 
-            <!-- Add domain -->
+            <!-- Add domain with group select -->
             <form method="POST" action="{{ url_for('add_domain') }}">
                 <input type="text" name="domain" placeholder="example.com" required>
+                <select name="tag">
+                    <option value="">[auto]</option>
+                    {% for tag, dom_list in grouped_domains.items() %}
+                        <option value="{{ tag }}">{{ tag }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit">➕ Add</button>
+            </form>
+
+            <!-- Manual Sync -->
+            <form method="POST" action="{{ url_for('sync_now') }}">
+                <button type="submit">🔄 Sync Now</button>
             </form>
 
             <!-- Check IP -->

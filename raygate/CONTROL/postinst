@@ -94,12 +94,11 @@ chmod +x "/opt/etc/ndm/netfilter.d/50-raygate-hook.sh"
 chmod +x "/opt/etc/init.d/S99raygate"
 echo "OK!"
 
-# === Cron для синка ===
-echo -n "[8/9] Configuring cron for sync... "
+# === Cron для синка (Entware-only) ===
+echo -n "[8/9] Configuring Entware cron for sync... "
 mkdir -p /opt/etc/crontabs
 CRON_FILE="/opt/etc/crontabs/root"
 
-# создаём или дополняем crontab
 if [ ! -f "$CRON_FILE" ]; then
   cat > "$CRON_FILE" <<EOF
 SHELL=/bin/sh
@@ -114,10 +113,11 @@ fi
 chown root:root "$CRON_FILE"
 chmod 600 "$CRON_FILE"
 
-# перезапуск
+# убиваем возможные дубли crond
 killall crond 2>/dev/null || true
-crond -c /opt/etc/crontabs -L /opt/var/log/cron.log
 
+# запускаем Entware-cron (с правильной папкой!)
+crond -c /opt/etc/crontabs -L /opt/var/log/cron.log &
 echo "OK!"
 
 # === Автозапуск и старт ===

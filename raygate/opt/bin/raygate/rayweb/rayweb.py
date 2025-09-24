@@ -12,6 +12,7 @@ SECRET_KEY = "__SECRET__"
 XRAY_SERVICE = "/opt/etc/init.d/S99raygate"
 XRAY_ADD_SCRIPT = "/opt/bin/raygate/raygate_add.sh"
 XRAY_REM_SCRIPT = "/opt/bin/raygate/raygate_rem.sh"
+SYNC_SCRIPT = "/opt/bin/raygate/raygate_sync.sh"
 META_FILE = "/opt/etc/vpn_domains.meta"
 WAN_INTERFACE = "eth3"
 
@@ -115,13 +116,20 @@ def add_domain():
     if not session.get("logged_in"):
         return redirect(url_for("index"))
     domain = request.form.get("domain", "").strip()
+    tag = request.form.get("tag", "").strip()
     domain_regex = re.compile(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
     if not domain_regex.fullmatch(domain):
         session["flash_msg"] = "Invalid domain"
     else:
         try:
             result = subprocess.check_output([XRAY_ADD_SCRIPT, domain], stderr=subprocess.STDOUT, text=True)
-            session["flash_msg"] = result
+            if tag:
+                subprocess.check_call(
+                    ["sed", "-i", f"s|^{domain},.*|{domain},{tag}|", META_FILE]
+                )
+                session["flash_msg"] = f"✅ Added {domain} to group {tag}"
+            else:
+                session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
             session["flash_msg"] = e.output
     return redirect(url_for("index"))
@@ -175,6 +183,19 @@ def remove_group():
             session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
             session["flash_msg"] = e.output
+    return redirect(url_for("index"))
+
+
+# ==== Ручной Sync ====
+@app.route("/sync_now", methods=["POST"])
+def sync_now():
+    if not session.get("logged_in"):
+        return redirect(url_for("index"))
+    try:
+        result = subprocess.check_output([SYNC_SCRIPT], stderr=subprocess.STDOUT, text=True)
+        session["flash_msg"] = "✅ Sync completed!\n" + result
+    except subprocess.CalledProcessError as e:
+        session["flash_msg"] = e.output
     return redirect(url_for("index"))
 
 
