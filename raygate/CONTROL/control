@@ -1,6 +1,6 @@
 ﻿Package: raygate
 Version: 2.6.0
-Architecture: *
+Architecture: all
 Maintainer: DT
 Section: net
 Priority: optional
