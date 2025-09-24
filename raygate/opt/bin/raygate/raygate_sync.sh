@@ -7,26 +7,7 @@ META_FILE="/opt/etc/vpn_domains.meta"
 TIMEOUT=300
 DNS_PORT="__SYSDNS__"
 
-# Функция проверки публичных IP
-is_public_ip() {
-    ip="$1"
-    case "$ip" in
-        0.*|10.*|127.*|169.254.*|192.168.*) return 1 ;;
-    esac
-
-    # 172.16.0.0 – 172.31.255.255
-    if echo "$ip" | grep -Eq '^172\.(1[6-9]|2[0-9]|3[0-1])\.'; then
-        return 1
-    fi
-
-    # 224.0.0.0/4 и выше (мультикаст, future use)
-    first=$(echo "$ip" | cut -d. -f1)
-    if [ "$first" -ge 224 ]; then
-        return 1
-    fi
-
-    return 0
-}
+export TIMEOUT DNS_PORT SET META_FILE
 
 # Создаём ipset если нет
 ipset create "$SET" hash:ip timeout $TIMEOUT -exist
@@ -34,16 +15,22 @@ ipset create "$SET" hash:ip timeout $TIMEOUT -exist
 # Если meta нет — выходим
 [ ! -f "$META_FILE" ] && exit 0
 
-# Для каждого домена из meta
-while IFS=, read -r DOMAIN TAG; do
-    [ -z "$DOMAIN" ] && continue
+# Параллельный резолв доменов
+cut -d, -f1 "$META_FILE" | grep -v '^$' | sort -u | \
+xargs -n1 -P10 -I{} sh -c '
+    dom="$1"
+    ADDED=0
+    for ip in $(dig +short @"127.0.0.1" -p $DNS_PORT "$dom" A \
+                | grep -Eo "([0-9]{1,3}\.){3}[0-9]{1,3}"); do
+        case "$ip" in
+            0.*|10.*|127.*|169.254.*|192.168.*) continue ;;
+        esac
+        first=$(echo "$ip" | cut -d. -f1)
+        [ "$first" -ge 224 ] && continue
 
-    # Берём только IPv4, отбрасываем мусор
-    for ip in $(dig +short @"127.0.0.1" -p $DNS_PORT "$DOMAIN" A | \
-                grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}'); do
-        if is_public_ip "$ip"; then
-            ipset add -! "$SET" "$ip" timeout $TIMEOUT
+        if ipset add -! "$SET" "$ip" timeout $TIMEOUT 2>/dev/null; then
+            ADDED=$((ADDED+1))
         fi
     done
-
-done < "$META_FILE"
+    echo "✅ $dom (IP added: $ADDED)"
+' _ {}

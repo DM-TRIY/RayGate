@@ -141,6 +141,8 @@ def add_domain():
 
     except subprocess.CalledProcessError as e:
         session["flash_msg"] = e.output
+    except Exception as e:
+        session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
 
     return redirect(url_for("index"))
 
@@ -159,6 +161,8 @@ def remove_domain():
             session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
             session["flash_msg"] = e.output
+        except Exception as e:
+            session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
     return redirect(url_for("index"))
 
 
@@ -176,6 +180,8 @@ def remove_ip():
             session["flash_msg"] = f"IP {ip} removed from vpn_domains"
         except subprocess.CalledProcessError:
             session["flash_msg"] = f"Failed to remove IP {ip} (not found?)"
+        except Exception as e:
+            session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
     return redirect(url_for("index"))
 
 
@@ -193,6 +199,8 @@ def remove_group():
             session["flash_msg"] = result
         except subprocess.CalledProcessError as e:
             session["flash_msg"] = e.output
+        except Exception as e:
+            session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
     return redirect(url_for("index"))
 
 
@@ -206,6 +214,8 @@ def sync_now():
         session["flash_msg"] = "✅ Sync completed!\n" + result
     except subprocess.CalledProcessError as e:
         session["flash_msg"] = e.output
+    except Exception as e:
+        session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
     return redirect(url_for("index"))
 
 
@@ -221,6 +231,8 @@ def check_ip():
         ).strip()
     except subprocess.CalledProcessError:
         vpn_ip = "Error"
+    except Exception:
+        vpn_ip = "Error"
 
     try:
         wan_ip = subprocess.check_output(
@@ -228,6 +240,8 @@ def check_ip():
             text=True
         ).strip()
     except subprocess.CalledProcessError:
+        wan_ip = "Error"
+    except Exception:
         wan_ip = "Error"
 
     vpn_flag = ip_to_flag(vpn_ip) if vpn_ip != "Error" else ""
@@ -250,6 +264,8 @@ def xray_control():
         session["flash_msg"] = result
     except subprocess.CalledProcessError as e:
         session["flash_msg"] = e.output
+    except Exception as e:
+        session["flash_msg"] = f"❌ Unexpected error: {str(e)}"
     return redirect(url_for("index"))
 
 
