@@ -118,9 +118,9 @@ killall crond 2>/dev/null || true
 
 # запускаем Entware-cron (с правильной папкой!)
 killall crond 2>/dev/null || true
-sleep 0.5
+sleep 1
 crond -c /opt/etc/crontabs -L /opt/var/log/cron.log &
-sleep 0.5
+sleep 1
 echo "OK!"
 
 # === Автозапуск и старт ===
