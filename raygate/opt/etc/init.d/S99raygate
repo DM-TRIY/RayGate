@@ -129,6 +129,9 @@ start)
     echo "[RAYGATE] Syncing..."
     /opt/bin/raygate/raygate_sync.sh >/dev/null 2>&1 &
 
+    echo "[RAYGATE] Starting cron..."
+    /opt/etc/init.d/S10cron restart
+
     if [ ! -x "$XRAY_BIN" ]; then
       echo "[RAYGATE] Xray binary not found at $XRAY_BIN ❌"
       exit 1

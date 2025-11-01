@@ -9,6 +9,8 @@ DNS_PORT="__SYSDNS__"
 
 export TIMEOUT DNS_PORT SET META_FILE
 
+echo "[SYNC START] $(date)" >> /opt/var/log/raygate_sync_debug.log
+
 # Создаём ipset если нет
 ipset create "$SET" hash:ip timeout $TIMEOUT -exist
 
